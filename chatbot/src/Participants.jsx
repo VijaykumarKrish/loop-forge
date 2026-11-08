@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { confirmationCaption } from "./api";
+import { t } from "./i18n.js";
 const MAX_FACES = 3;
 export function authorFor(message, session, users = []) {
   const id = message.authorId || (!session?.shared ? session?.userId : 0);
@@ -15,7 +16,7 @@ export function authorFor(message, session, users = []) {
       user?.chineseName ||
       user?.loginName ||
       message.authorName ||
-      (id ? `用户 ${id}` : "历史发言人未记录"),
+      (id ? t(`用户 ${id}`, `User ${id}`) : t("历史发言人未记录", "Unrecorded speaker")),
   };
 }
 export function Avatar({ person, className = "" }) {
@@ -98,7 +99,11 @@ export default function Participants({ session, users, compact = false }) {
     };
   }, [compact, session?.id, hasPeople]);
   if (!hasPeople) return null;
-  const label = `${people.length} 人发过言${unknown ? "，部分历史发言人未记录" : ""}`;
+  const label = t(
+    `${people.length} 人发过言${unknown ? "，部分历史发言人未记录" : ""}`,
+    `${people.length} ${people.length === 1 ? "person has" : "people have"} spoken${unknown ? "; some earlier speakers were not recorded" : ""}`,
+  );
+  const names = people.map((p) => p.name).join(t("、", ", "));
   const shown = people.length
     ? people.slice(0, MAX_FACES)
     : [{ id: 0, name: "?" }];
@@ -121,15 +126,19 @@ export default function Participants({ session, users, compact = false }) {
     return (
       <span
         className="session-people"
-        title={`${label}：${people.map((p) => p.name).join("、")}`}
-        aria-label={`${label}：${people.map((p) => p.name).join("、")}`}
+        data-i18n-data
+        title={`${label}${t("：", ": ")}${names}`}
+        aria-label={`${label}${t("：", ": ")}${names}`}
       >
         {faces}
       </span>
     );
   return (
     <details ref={popover} className="conversation-people">
-      <summary aria-label={`查看会话参与人，${label}`} title={label}>
+      <summary
+        aria-label={t(`查看会话参与人，${label}`, `View participants, ${label}`)}
+        title={label}
+      >
         {faces}
       </summary>
       <div className="people-popover">
@@ -137,7 +146,7 @@ export default function Participants({ session, users, compact = false }) {
         {people.map((p) => (
           <div key={p.id}>
             <Avatar person={p} />
-            <span>
+            <span data-i18n-data>
               {p.name}
               {p.loginName && p.name !== p.loginName ? (
                 <small>{p.loginName}</small>

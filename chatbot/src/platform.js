@@ -1,3 +1,5 @@
+import { isEnglish, t } from "./i18n.js";
+
 export const actionNames = {
   runs_start: "启动 SOP",
   runs_approve: "批准节点",
@@ -52,14 +54,72 @@ const verbs = {
   import: "导入",
   restore: "恢复",
 };
+const actionNamesEn = {
+  runs_start: "Start SOP",
+  runs_approve: "Approve node",
+  runs_reject: "Reject node",
+  runs_retry: "Retry node",
+  runs_cancel: "Cancel run",
+  runs_pause: "Pause run",
+  runs_resume: "Resume run",
+  issues_dispatch: "Dispatch SOP",
+  issues_save: "Save requirement",
+  issues_import_tapd: "Import TAPD requirement",
+  issues_clarify: "Save requirement clarification",
+  issues_chat_clarify: "Start AI requirement clarification",
+  issues_clarification_save: "Save and sync requirement clarification",
+  issues_delete: "Delete requirement",
+  issues_comments_add: "Add requirement comment",
+  issues_reopen: "Reopen requirement",
+  workflows_save: "Save SOP",
+  workflows_clone: "Copy SOP",
+  workflows_publish: "Publish SOP",
+  agents_save: "Save role",
+  assistant_tasks_save: "Save scheduled task",
+};
+const entitiesEn = {
+  agents: "role",
+  workflows: "SOP",
+  projects: "project",
+  repositories: "repository",
+  rules: "rule",
+  skills: "skill",
+  mcp_servers: "MCP server",
+  schedule_jobs: "platform schedule",
+  assistant_tasks: "assistant schedule",
+  runs: "run",
+  issues: "requirement",
+  environments: "environment",
+  sandboxes: "sandbox",
+  dockerfiles: "Dockerfile",
+  executors: "executor",
+};
+const verbsEn = {
+  save: "Save",
+  delete: "Delete",
+  publish: "Publish",
+  clone: "Copy",
+  start: "Start",
+  cancel: "Cancel",
+  retry: "Retry",
+  pause: "Pause",
+  resume: "Resume",
+  run: "Run",
+  import: "Import",
+  restore: "Restore",
+};
 export const actionName = (tool) => {
-  if (actionNames[tool]) return actionNames[tool];
+  const en = isEnglish();
+  const names = en ? actionNamesEn : actionNames;
+  if (names[tool]) return names[tool];
   const match = tool?.match(/^(.*)_([^_]+)$/);
-  return match && entities[match[1]] && verbs[match[2]]
-    ? verbs[match[2]] + entities[match[1]]
-    : tool
-      ? `执行 ${tool}`
-      : "未指定操作";
+  if (match && entities[match[1]] && verbs[match[2]])
+    return en
+      ? `${verbsEn[match[2]]} ${entitiesEn[match[1]]}`
+      : verbs[match[2]] + entities[match[1]];
+  return tool
+    ? t(`执行 ${tool}`, `Run ${tool}`)
+    : t("未指定操作", "No action specified");
 };
 export const visibleSidebarArtifact = (a) =>
   !a.draft ||
@@ -92,7 +152,10 @@ export function projectEntryTarget(draft, currentProjectId = "") {
   if (!id || id === currentProjectId) return null;
   return {
     href: `/?projectId=${encodeURIComponent(id)}#/collaboration`,
-    label: `进入项目「${saved.name || draft.body?.name || id}」继续对话`,
+    label: t(
+      `进入项目「${saved.name || draft.body?.name || id}」继续对话`,
+      `Open project "${saved.name || draft.body?.name || id}" to continue`,
+    ),
   };
 }
 

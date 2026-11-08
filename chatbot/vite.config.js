@@ -10,6 +10,8 @@ export default defineConfig({
     proxy: {
       "/api": api,
       "/mcp": api,
+      // Language layer shared with the platform pages (see index.html).
+      "^/(boot|i18n|i18n-en|i18n-chat-en)\\.js$": api,
     },
   },
 });

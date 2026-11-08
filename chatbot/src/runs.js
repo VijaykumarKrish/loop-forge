@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, parseReply } from "./api.js";
+import { isEnglish, t } from "./i18n.js";
 
 // runProblems lists what a person has to act on: failed nodes with their
 // error and human gates with what they wait for. Mirrors assistantRunProblems
@@ -29,19 +30,22 @@ export function runProblems(run) {
       reason =
         (node.error || "").trim() ||
         (gate.reason || "").trim() ||
-        "节点失败但没有记录错误，可以打开节点查看执行过程";
+        t(
+          "节点失败但没有记录错误，可以打开节点查看执行过程",
+          "The node failed without recording an error. Open the node to see what it did.",
+        );
     else
       reason =
         [gate.reason, gate.actionRequired]
           .map((s) => (s || "").trim())
           .filter(Boolean)
-          .join("；需要处理：") ||
+          .join(t("；需要处理：", "; action required: ")) ||
         (node.error || "")
           .replace(/^\s*agent requested human confirmation:\s*/i, "")
           .trim() ||
         (def.type === "approval"
           ? approvalWaitReason(run, id)
-          : "等待人工确认");
+          : t("等待人工确认", "Waiting for human confirmation"));
     const waiting = node.status === "waiting_approval";
     out.push({
       key: [run.id, id, node.attempt, node.reworkCount, node.status].join(":"),
@@ -70,9 +74,13 @@ export function approvalWaitReason(run, nodeId) {
   const nodes = wf.nodes || [];
   const edges = wf.edges || [];
   const index = nodes.findIndex((n) => n.id === nodeId);
-  if (index < 0) return "等待人工确认";
+  if (index < 0) return t("等待人工确认", "Waiting for human confirmation");
   const node = nodes[index];
-  const name = (id) => `「${nodes.find((n) => n.id === id)?.name || id}」`;
+  const en = isEnglish();
+  const name = (id) => {
+    const label = nodes.find((n) => n.id === id)?.name || id;
+    return en ? `"${label}"` : `「${label}」`;
+  };
   let upstream = edges
     .filter((e) => e.target === nodeId && e.source)
     .map((e) => name(e.source));
@@ -82,6 +90,22 @@ export function approvalWaitReason(run, nodeId) {
   if (!edges.length) {
     upstream = index > 0 ? [name(nodes[index - 1].id)] : [];
     downstream = index + 1 < nodes.length ? [name(nodes[index + 1].id)] : [];
+  }
+  if (en) {
+    const list = (items) => items.join(", ");
+    const sopEn = (wf.name || "").trim() ? `SOP "${wf.name.trim()}"` : "This SOP";
+    let textEn = `${sopEn} has a human gate at this step`;
+    textEn += upstream.length
+      ? `: ${list(upstream)} ${upstream.length === 1 ? "has" : "have"} finished, and a member with permission must check the results and confirm`
+      : "; a member with permission must confirm";
+    textEn += downstream.length
+      ? `. After confirmation the run continues with ${list(downstream)}`
+      : ". After confirmation the run ends";
+    if (node.rejectTo) textEn += `; if rejected it goes back to ${name(node.rejectTo)} for rework`;
+    textEn += ".";
+    const instructionsEn = (node.taskPrompt || "").trim();
+    if (instructionsEn) textEn += ` Confirmation requirements: ${instructionsEn}`;
+    return textEn;
   }
   const sop = (wf.name || "").trim() ? `SOP「${wf.name.trim()}」` : "该 SOP";
   let text = `${sop}在这一步设置了人工门禁`;

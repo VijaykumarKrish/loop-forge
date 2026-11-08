@@ -223,7 +223,7 @@ export function useArtifactPanelLayout(root, onClose, nodeId = null, open = true
   useLayoutEffect(() => {
     if (!compact || !open) return;
     const frame = requestAnimationFrame(() => {
-      root.current?.querySelector('[aria-label="返回聊天"], button')?.focus({ preventScroll: true });
+      root.current?.querySelector("[data-back-to-chat], button")?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [compact, open]);

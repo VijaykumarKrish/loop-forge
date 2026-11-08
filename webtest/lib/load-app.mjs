@@ -161,7 +161,7 @@ class ObserverStub {
   takeRecords() { return []; }
 }
 
-export async function loadApp({ routes = [], hash = '', dispatchReady = true } = {}) {
+export async function loadApp({ routes = [], hash = '', dispatchReady = true, lang = 'zh' } = {}) {
   const html = await readFile(path.join(WEB_ROOT, 'index.html'), 'utf8');
   const dom = new JSDOM(html, {
     runScripts: 'outside-only',
@@ -169,6 +169,9 @@ export async function loadApp({ routes = [], hash = '', dispatchReady = true } =
     url: `http://127.0.0.1/${hash ? `#${hash.replace(/^#/, '')}` : ''}`,
   });
   const { window } = dom;
+  // boot.js follows the browser language when nothing is saved and jsdom reports
+  // en-US; pin the saved choice so assertions run against the intended copy.
+  window.localStorage.setItem('loopforge.lang', lang);
   const router = createFetchRouter(routes);
 
   window.fetch = router.fetch;

@@ -89,6 +89,18 @@ GATE_BINARY_PATTERN="${BIN_DIR}/agentflow-gate-mcp-{os}-{arch}"
 PLIST="${HOME}/Library/LaunchAgents/com.agentflow.runner.plist"
 UNIT="${HOME}/.config/systemd/user/agentflow-runner.service"
 
+# systemd_env prints one quoted Environment= assignment. Unquoted, systemd
+# splits the value at spaces (e.g. WSL's "/mnt/c/Program Files/..." PATH
+# entries) and drops everything after the first one; % would also be read as a
+# unit specifier.
+systemd_env() {
+  local v="$1=$2"
+  v="${v//\\/\\\\}"
+  v="${v//\"/\\\"}"
+  v="${v//%/%%}"
+  printf 'Environment="%s"\n' "$v"
+}
+
 # ---------- 卸载 ----------
 if [[ "$UNINSTALL" == "1" ]]; then
   info "停止并移除 agentflow-runner..."
@@ -220,7 +232,10 @@ resolve_server
 info "检测本机 Agent CLI..."
 for cli in claude codex codebuddy; do
   if command -v "$cli" >/dev/null 2>&1; then
-    info "  发现 $cli: $(command -v "$cli")（$("$cli" --version 2>/dev/null | head -1 || echo 版本未知)）"
+    # </dev/null: with `curl … | bash` the script itself is on stdin, and some
+    # CLIs (e.g. a Windows claude.exe seen from WSL) drain it, silently ending
+    # the install right here.
+    info "  发现 $cli: $(command -v "$cli")（$("$cli" --version </dev/null 2>/dev/null | head -1 || echo 版本未知)）"
   else
     echo "[bind-cli] 提示: 未找到 ${cli}，该 CLI 不会接入平台（可先完成 CLI 登录后重新执行本脚本）" >&2
   fi
@@ -253,7 +268,7 @@ case "$(printf '%s' "${AGENTFLOW_BROWSER:-}" | tr '[:upper:]' '[:lower:]')" in
       # A stalled download must not hang the whole bind; it only costs browser tools.
       install_limit=""
       if command -v timeout >/dev/null 2>&1; then install_limit="timeout 600"; fi
-      PLAYWRIGHT_DOWNLOAD_HOST="${PLAYWRIGHT_DOWNLOAD_HOST:-https://npmmirror.com/mirrors/playwright}" $install_limit npx -y playwright install chromium >/dev/null 2>&1 || true
+      PLAYWRIGHT_DOWNLOAD_HOST="${PLAYWRIGHT_DOWNLOAD_HOST:-https://npmmirror.com/mirrors/playwright}" $install_limit npx -y playwright install chromium </dev/null >/dev/null 2>&1 || true
       if CHROMIUM_PATH="$(find_chromium)"; then
         info "  已安装 Chromium: ${CHROMIUM_PATH}"
       else
@@ -412,8 +427,8 @@ EOF
       echo "After=network-online.target"
       echo ""
       echo "[Service]"
-      echo "Environment=PATH=${USER_PATH}"
-      echo "Environment=AGENTFLOW_GATE_MCP_BINARY=${GATE_BINARY_PATTERN}"
+      systemd_env PATH "$USER_PATH"
+      systemd_env AGENTFLOW_GATE_MCP_BINARY "$GATE_BINARY_PATTERN"
       printf 'ExecStart=%s' "$BINARY"
       for arg in "${RUN_ARGS[@]}"; do printf ' %s' "$arg"; done
       echo ""

@@ -15,6 +15,7 @@ import {
 } from "./credentials";
 import { runProblems } from "./runs.js";
 import { IconButton } from "./ui";
+import { t } from "./i18n.js";
 import "./run-alerts.css";
 
 const DISMISSED_KEY = "agentflow.native-chat.run-alerts.dismissed";
@@ -165,7 +166,7 @@ function RunAlert({
   const mine = !ownerId || ownerId === user?.id;
   const owner = users.find((u) => u.id === ownerId);
   const ownerName =
-    owner?.chineseName || owner?.name || owner?.loginName || "运行责任人";
+    owner?.chineseName || owner?.name || owner?.loginName || t("运行责任人", "the run owner");
   const flag = hint ? `${hint.field}Configured` : "";
   const configured =
     mine && hint && !!(users.find((u) => u.id === user?.id) || user)?.[flag];
@@ -217,11 +218,12 @@ function RunAlert({
         <span className="run-alert-lamp" aria-hidden="true" />
         <div className="run-alert-title">
           <div className="run-alert-title-row">
-            <strong>「{item.nodeName}」</strong>
+            <strong data-i18n-data>{t(`「${item.nodeName}」`, `"${item.nodeName}"`)}</strong>
             <span className="run-alert-tag">{tag}</span>
           </div>
           <span className="run-alert-meta">
-            {run.workflowSnapshot?.name || "SOP 运行"} · <code>{run.id}</code>
+            <span data-i18n-data>{run.workflowSnapshot?.name || "SOP 运行"}</span> ·{" "}
+            <code>{run.id}</code>
           </span>
         </div>
         <IconButton
@@ -243,14 +245,26 @@ function RunAlert({
                 interactive={false}
                 aria-hidden="true"
               />
-              <span>
+              <span data-i18n-data>
                 {fixedSince
-                  ? `已检测到你配置了${hint.label}，点「重试节点」继续`
+                  ? t(
+                      `已检测到你配置了${hint.label}，点「重试节点」继续`,
+                      `Your ${hint.label} is now configured. Click "Retry node" to continue.`,
+                    )
                   : configured
-                    ? `你的${hint.label}已配置。如果是失败之后才配的，直接点「重试节点」；否则它可能无效、已过期或权限不足，请按下面步骤重新生成`
+                    ? t(
+                        `你的${hint.label}已配置。如果是失败之后才配的，直接点「重试节点」；否则它可能无效、已过期或权限不足，请按下面步骤重新生成`,
+                        `Your ${hint.label} is configured. If you added it after the failure, just click "Retry node"; otherwise it may be invalid, expired or missing permissions, so regenerate it with the steps below.`,
+                      )
                     : mine
-                      ? `原因：你的${hint.label}未配置或无效`
-                      : `原因：${ownerName}的${hint.label}未配置或无效`}
+                      ? t(
+                          `原因：你的${hint.label}未配置或无效`,
+                          `Cause: your ${hint.label} is missing or invalid`,
+                        )
+                      : t(
+                          `原因：${ownerName}的${hint.label}未配置或无效`,
+                          `Cause: ${ownerName}'s ${hint.label} is missing or invalid`,
+                        )}
               </span>
             </div>
             {!fixedSince ? (
@@ -261,9 +275,11 @@ function RunAlert({
               </ol>
             ) : null}
             {!mine ? (
-              <small>
-                这个运行使用责任人 {ownerName}{" "}
-                的个人凭证，你配置自己的不会生效；请把上面的步骤发给 TA。
+              <small data-i18n-data>
+                {t(
+                  `这个运行使用责任人 ${ownerName} 的个人凭证，你配置自己的不会生效；请把上面的步骤发给 TA。`,
+                  `This run uses the personal credentials of its owner, ${ownerName}. Configuring your own will not help; send them the steps above.`,
+                )}
               </small>
             ) : null}
             {!fixedSince && (mine || guide.url) ? (
@@ -275,7 +291,7 @@ function RunAlert({
                     onClick={() => openCredentialSettings(hint.field)}
                   >
                     <HarnessIcon name="key" size={14} aria-hidden="true" />
-                    去配置 {hint.label}
+                    {t(`去配置 ${hint.label}`, `Configure ${hint.label}`)}
                   </button>
                 ) : null}
                 {guide.url ? (

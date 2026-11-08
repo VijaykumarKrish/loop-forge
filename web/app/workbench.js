@@ -36,13 +36,13 @@ const CREDENTIAL_KINDS=[
   {key:'gitToken',group:'platform',name:'GitHub',short:'仓库授权',logo:'github',monochrome:true,
     use:'克隆私有仓库、创建任务分支、推送交付产物',
     description:'用于克隆私有仓库、创建任务分支及推送交付产物。',
-    guide:[['打开 GitHub「Settings → Developer settings → Personal access tokens」','https://github.com/settings/tokens','前往 GitHub 申请个人访问令牌'],['新建令牌，为目标仓库授予 <code>Contents</code> 和 <code>Pull requests</code> 的读写权限'],['复制令牌粘贴到下方，保存前会自动校验权限']],
+    guide:[['打开 GitHub「Settings → Developer settings → Personal access tokens」','https://github.com/settings/tokens','前往 GitHub 申请个人访问令牌'],[lfT('新建令牌，为目标仓库授予 <code>Contents</code> 和 <code>Pull requests</code> 的读写权限','Create a token with read and write access to <code>Contents</code> and <code>Pull requests</code> on the target repositories')],['复制令牌粘贴到下方，保存前会自动校验权限']],
     placeholder:'请输入个人访问令牌（PAT）',hint:'保存前会先校验令牌有效性与权限',
     impact:'依赖私有仓库的 SOP 将无法克隆或推送仓库。'},
   {key:'codeBuddyApiKey',group:'model',name:'CodeBuddy',short:'CodeBuddy API Key',logo:'codebuddy',
     use:'AI 对话与 SOP 的 CodeBuddy 执行器',
     description:'AI 对话（含 Claude、GPT 等模型）和 SOP 的 CodeBuddy 执行器都使用它；网络环境按账号所在环境配置。',
-    guide:[['登录 CodeBuddy 个人密钥页','https://www.codebuddy.ai/','前往 CodeBuddy 获取 API Key'],['新建 API Key，复制以 <code>ck_</code> 开头的密钥'],['粘贴到下方；网络环境国际站留空，国内站填 internal，iOA 填 ioa']],
+    guide:[['登录 CodeBuddy 个人密钥页','https://www.codebuddy.ai/','前往 CodeBuddy 获取 API Key'],[lfT('新建 API Key，复制以 <code>ck_</code> 开头的密钥','Create an API key and copy the key that starts with <code>ck_</code>')],['粘贴到下方；网络环境国际站留空，国内站填 internal，iOA 填 ioa']],
     placeholder:'请输入个人 ck_ key',
     extra:{name:'codeBuddyInternetEnvironment',label:'网络环境',placeholder:'国际站留空，国内站 internal，iOA 填 ioa'},
     impact:'AI 对话将只能使用默认模型，CodeBuddy 执行器节点会失败。'},
@@ -63,7 +63,7 @@ const CREDENTIAL_KINDS=[
 ];
 // Platform features depend on these, in the order people should configure them.
 const CREDENTIAL_RECOMMENDED=['gitToken','codeBuddyApiKey'];
-const CREDENTIAL_PAT_WARNING='请填写 GitHub <b>个人访问令牌（PAT）</b>，为目标仓库授予 <b>Contents</b> 和 <b>Pull requests</b> 的读写权限；少勾权限会导致克隆 / 推送仓库失败。';
+const CREDENTIAL_PAT_WARNING=lfT('请填写 GitHub <b>个人访问令牌（PAT）</b>，为目标仓库授予 <b>Contents</b> 和 <b>Pull requests</b> 的读写权限；少勾权限会导致克隆 / 推送仓库失败。','Enter a GitHub <b>personal access token (PAT)</b> with read and write access to <b>Contents</b> and <b>Pull requests</b> on the target repositories. Missing scopes make cloning or pushing fail.');
 function credentialKind(key){return CREDENTIAL_KINDS.find(kind=>kind.key===key)||null}
 function credentialConfigured(kind,user){return !!user?.[kind.key+'Configured']}
 function credentialUser(){return userById(state.currentUser?.id)||{}}
@@ -97,8 +97,12 @@ function gitTokenVerifyFor(user){return state.gitTokenVerify&&Number(state.gitTo
 function gitTokenFailure(result){
   if(!result)return '';
   if(result.error)return result.error;
-  if(!result.valid)return `令牌有效但缺少权限：${(result.missing||[]).join('、')}，请在代码托管平台补充授权`;
+  if(!result.valid)return lfT(`令牌有效但缺少权限：${(result.missing||[]).join('、')}，请在代码托管平台补充授权`,`The token is valid but is missing permissions: ${(result.missing||[]).join(', ')}. Grant them on your code hosting platform.`);
   return '';
+}
+function gitTokenNotSaved(result){
+  const failure=gitTokenFailure(result);
+  return lfT(`${failure||'Git Token 校验未通过'}（未保存）`,`${failure||'Git token check failed'} (not saved)`);
 }
 function credentialStatus(kind,user){
   if(!credentialConfigured(kind,user))return 'empty';
@@ -140,10 +144,10 @@ function credentialPatWarningHTML(show){return `<div class="credential-note is-w
 const GIT_TOKEN_REPLACE_HINT='保存后替换当前的令牌，对下一次任务生效';
 function credentialAgo(at){
   const seconds=Math.max(0,Math.round((Date.now()-at)/1000));
-  if(seconds<60)return '刚刚';
-  if(seconds<3600)return `${Math.floor(seconds/60)} 分钟前`;
-  if(seconds<86400)return `${Math.floor(seconds/3600)} 小时前`;
-  return `${Math.floor(seconds/86400)} 天前`;
+  if(seconds<60)return lfT('刚刚','just now');
+  if(seconds<3600)return lfT(`${Math.floor(seconds/60)} 分钟前`,`${Math.floor(seconds/60)} min ago`);
+  if(seconds<86400)return lfT(`${Math.floor(seconds/3600)} 小时前`,`${Math.floor(seconds/3600)} h ago`);
+  return lfT(`${Math.floor(seconds/86400)} 天前`,`${Math.floor(seconds/86400)} d ago`);
 }
 function gitTokenDetailHTML(kind,user){
   const verify=gitTokenVerifyFor({id:state.currentUser?.id}),result=verify?.result,missing=result?.missing||[];
@@ -370,7 +374,7 @@ async function submitCredentialEditor(row,button){
       if(!outcome.saved){
         setCredentialButtonBusy(button,'');
         const line=row.querySelector('[data-git-verify-line]'),warning=row.querySelector('.git-token-pat-warning');
-        if(line){line.classList.add('is-err');line.innerHTML=credentialGlyph('alert',13)+escapeHTML(`${gitTokenFailure(outcome.result)||'Git Token 校验未通过'}（未保存）`);hydrateCredentialIcons(line)}
+        if(line){line.classList.add('is-err');line.innerHTML=credentialGlyph('alert',13)+escapeHTML(gitTokenNotSaved(outcome.result));hydrateCredentialIcons(line)}
         if(warning)warning.hidden=false;
         return;
       }
@@ -378,13 +382,13 @@ async function submitCredentialEditor(row,button){
       return;
     }
     await saveCredential(key,{secret,...(extra?{extra:extra.value}:{})});
-    credentialSaved(key,`${kind.short} 已保存`);
+    credentialSaved(key,lfT(`${kind.short} 已保存`,`${kind.short} saved`));
   }catch(err){toast(err.message,'err');setCredentialButtonBusy(button,'')}
 }
 async function confirmDeleteCredential(row,button){
   const key=row.dataset.credentialRow,kind=credentialKind(key);
   setCredentialButtonBusy(button,'删除中');
-  try{await deleteCredential(key);credentialSaved(key,`${kind.short} 已删除`)}
+  try{await deleteCredential(key);credentialSaved(key,lfT(`${kind.short} 已删除`,`${kind.short} deleted`))}
   catch(err){toast(err.message,'err');setCredentialButtonBusy(button,'')}
 }
 function toggleCredentialSecret(button){
@@ -540,7 +544,7 @@ function credentialWizardStepTwoHTML(kind){
 }
 function credentialWizardStepThreeHTML(kind){
   const wizard=credentialWizard;
-  if(wizard.done)return `<div class="credential-saved"><span class="credential-check-big"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><h4>${escapeHTML(kind.short)} 已保存</h4><p>下一次运行你负责的任务时生效，可随时在列表中展开编辑。</p></div>`;
+  if(wizard.done)return `<div class="credential-saved"><span class="credential-check-big"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><h4>${escapeHTML(lfT(`${kind.short} 已保存`,`${kind.short} saved`))}</h4><p>下一次运行你负责的任务时生效，可随时在列表中展开编辑。</p></div>`;
   const extra=kind.extra?`<dt>${escapeHTML(kind.extra.label)}</dt><dd${kind.extra.url?' class="credential-mono"':''}>${escapeHTML(String(wizard.extra||'').trim()||(kind.extra.url?'官方地址':kind.extra.fallback))}</dd>`:'';
   const line=wizard.error?`<p class="credential-vline is-err" role="alert">${credentialGlyph('alert',13)}${escapeHTML(wizard.error)}</p>`
     :wizard.saving&&kind.key==='gitToken'?`<p class="credential-vline is-info" role="status">${credentialSpinner(13)}正在校验令牌有效性与权限…</p>`
@@ -671,11 +675,11 @@ async function advanceCredentialWizard(){
   try{
     if(kind.key==='gitToken'){
       const outcome=await verifyAndSaveGitToken(secret);
-      if(!outcome.saved){wizard.error=`${gitTokenFailure(outcome.result)||'Git Token 校验未通过'}（未保存）`;return}
+      if(!outcome.saved){wizard.error=gitTokenNotSaved(outcome.result);return}
     }else await saveCredential(kind.key,{secret,...(kind.extra?{extra:wizard.extra}:{})});
     wizard.done=true;wizard.secret='';
     renderCredentialPanel();
-    toast(kind.key==='gitToken'?'Git Token 校验通过，已保存':`${kind.short} 已保存`,'ok');
+    toast(kind.key==='gitToken'?'Git Token 校验通过，已保存':lfT(`${kind.short} 已保存`,`${kind.short} saved`),'ok');
   }catch(err){wizard.error=err.message}
   finally{
     if(credentialWizard===wizard){wizard.saving=false;paintCredentialWizard(0);focusCredentialWizard()}

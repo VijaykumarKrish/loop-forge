@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SelectMenu } from "./ui";
 import HarnessIcon from "./HarnessIcon";
+import { t } from "./i18n.js";
 import "./sandbox-picker.css";
 
 export function conversationSandboxOptions(sandboxes, project, selected = "") {
@@ -14,7 +15,7 @@ export function conversationSandboxOptions(sandboxes, project, selected = "") {
   if (selected && !available.some((s) => s.id === selected)) {
     options.push({
       value: selected,
-      label: `环境已不可用 · ${selected}`,
+      label: t(`环境已不可用 · ${selected}`, `Environment unavailable · ${selected}`),
       disabled: true,
     });
   }
@@ -40,7 +41,7 @@ export default function SandboxPicker({ chat, onCreate }) {
         title="任务会话使用任务的运行环境。"
       >
         <HarnessIcon name="lock" size={12} interactive={false} />
-        <span>{chat.workspaceSandbox?.name || "任务运行环境"}</span>
+        <span data-i18n-data>{chat.workspaceSandbox?.name || "任务运行环境"}</span>
       </span>
     );
   }
@@ -62,12 +63,14 @@ export default function SandboxPicker({ chat, onCreate }) {
       icon: o.value ? "terminal" : "folder",
     }));
   return (
-    <span className="menu-anchor sandbox-context" title={label}>
+    <span className="menu-anchor sandbox-context">
       <button
         ref={trigger}
         type="button"
         className="context-pill sandbox-picker"
-        aria-label={`运行环境：${label}`}
+        title={label}
+        data-i18n-data
+        aria-label={t(`运行环境：${label}`, `Environment: ${label}`)}
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}

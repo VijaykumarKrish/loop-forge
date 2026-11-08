@@ -9,7 +9,9 @@ import {
   canChatInProject,
   restoreStream,
   confirmationCaption,
+  CONFIRMATION_REPLY_HINT,
 } from "./api";
+import { isEnglish, t } from "./i18n.js";
 import { reviewedOperation, operationError } from "./operations.js";
 import { credentialHint } from "./credentials.js";
 import { modelEffort } from "./effort.js";
@@ -639,7 +641,7 @@ export function useChat() {
       await write(
         `${sessionPath(id)}/generation/steer?generationId=${encodeURIComponent(from)}`,
         {
-          content: item.text || "请阅读本轮附件并回答。",
+          content: item.text || t("请阅读本轮附件并回答。", "Please read the attachments in this turn and answer."),
           attachments: item.attachments || [],
           references: item.references || [],
           model: activeModel,
@@ -738,7 +740,7 @@ export function useChat() {
         setActiveId(id);
         changeURL(id);
       }
-      const content = text.trim() || "请阅读本轮附件并回答。";
+      const content = text.trim() || t("请阅读本轮附件并回答。", "Please read the attachments in this turn and answer.");
       const pending = {
         role: "user",
         authorId: user?.id,
@@ -953,7 +955,8 @@ export function useChat() {
         // Confirmation resumes the original goal, while subsequent writes still
         // require their own confirmation. A failed receipt must never be replayed.
         await send({
-          text: `已确认并执行 ${draft.tool}。请核对这条草稿的保存回执，继续完成原始请求；不要重复刚才的写入，下一项需要确认时提交草稿，全部完成时总结实际结果。`,
+          // Kept in Chinese: the server and confirmationCaption match it.
+          text: `已确认并执行 ${draft.tool}。请核对这条草稿的保存回执，继续完成原始请求；不要重复刚才的写入，下一项需要确认时提交草稿，全部完成时总结实际结果。${isEnglish() ? CONFIRMATION_REPLY_HINT : ""}`,
           messagesOverride: saved.messages,
           approvalMode: "confirm",
         });
@@ -962,7 +965,10 @@ export function useChat() {
     } catch (e) {
       setError(
         (executed
-          ? "操作已执行，但回执保存失败，请先核对结果，不要重复执行。"
+          ? t(
+              "操作已执行，但回执保存失败，请先核对结果，不要重复执行。",
+              "The action ran, but saving its receipt failed. Check the result first and do not run it again. ",
+            )
           : "") + e.message,
       );
       throw Object.assign(e, { executed });

@@ -394,7 +394,7 @@ function syncProjectAdminRouteState(){
 async function confirmDiscardProjectDraft(){
   if(!projectAdminDirty())return true;
   const name=String(state.projectDraft?.name||'').trim()||'新项目';
-  return afConfirm({title:'放弃未保存的修改？',message:`「${name}」有未保存的修改，离开后这些修改会丢失。`,danger:true,confirmText:'放弃修改',cancelText:'继续编辑'});
+  return afConfirm({title:'放弃未保存的修改？',message:lfT(`「${name}」有未保存的修改，离开后这些修改会丢失。`,`"${name}" has unsaved changes. They will be lost if you leave.`),danger:true,confirmText:'放弃修改',cancelText:'继续编辑'});
 }
 function openProjectAdminDetail(id,tab='basic'){
   if(id==='new')return openProjectWizard();
@@ -454,7 +454,7 @@ function projectDeleteRow(project){
 }
 async function deleteProjectAdmin(projectId){
   const project=(state.data.projects||[]).find(p=>p.id===projectId);if(!project)return;
-  const ok=await afConfirm({title:'删除项目',message:`确定删除项目「${project.name||project.id}」吗？\n\n项目会从列表中移除，需求、运行记录和设置保留，可以恢复；标识 ${project.id} 仍被占用。`,danger:true,confirmText:'确定删除'});
+  const ok=await afConfirm({title:'删除项目',message:lfT(`确定删除项目「${project.name||project.id}」吗？\n\n项目会从列表中移除，需求、运行记录和设置保留，可以恢复；标识 ${project.id} 仍被占用。`,`Delete project "${project.name||project.id}"?\n\nThe project is removed from the list. Its requirements, runs and settings are kept and it can be restored. The ID ${project.id} stays reserved.`),danger:true,confirmText:'确定删除'});
   if(!ok)return;
   try{
     await api('/api/projects/'+encodeURIComponent(project.id),{method:'DELETE'});
@@ -466,13 +466,13 @@ async function deleteProjectAdmin(projectId){
     }
     resetProjectAdminDetail();
     history.replaceState(null,'',projectAdminHash(''));
-    renderAll();renderProjectAdmin();toast(`已删除项目「${project.name||project.id}」`,'ok');
+    renderAll();renderProjectAdmin();toast(lfT(`已删除项目「${project.name||project.id}」`,`Deleted project "${project.name||project.id}"`),'ok');
   }catch(err){toast(err.message,'err')}
 }
 async function deleteProjectRepository(repoId){
   const repo=(state.data.repositories||[]).find(r=>r.id===repoId);if(!repo)return;
   const project=(state.data.projects||[]).find(p=>p.id===repo.projectId),isDefault=project?.defaultRepositoryId===repo.id;
-  const ok=await afConfirm({title:'删除关联仓库',message:`确定删除仓库「${repo.name||repo.gongfengProjectId||repo.id}」吗？已在执行中的 SOP 不受影响，该操作不可恢复。${isDefault?'\n\n这是当前的默认仓库，删除后默认仓库将变为「暂未绑定」。':''}`,danger:true,confirmText:'确定删除'});
+  const ok=await afConfirm({title:'删除关联仓库',message:lfT(`确定删除仓库「${repo.name||repo.gongfengProjectId||repo.id}」吗？已在执行中的 SOP 不受影响，该操作不可恢复。${isDefault?'\n\n这是当前的默认仓库，删除后默认仓库将变为「暂未绑定」。':''}`,`Delete repository "${repo.name||repo.gongfengProjectId||repo.id}"? SOPs that are already running are not affected. This cannot be undone.${isDefault?'\n\nThis is the current default repository. After deletion the project will have no default repository.':''}`),danger:true,confirmText:'确定删除'});
   if(!ok)return;
   try{
     captureProjectAdminForm();
@@ -480,7 +480,7 @@ async function deleteProjectRepository(repoId){
     state.data.repositories=(state.data.repositories||[]).filter(r=>r.id!==repo.id);
     if(isDefault)project.defaultRepositoryId='';
     syncProjectDraftDefaultRepo(repo.projectId,'',repo.id);
-    renderAll();refreshProjectAdminRepos();toast(`已删除仓库「${repo.name||repo.id}」`,'ok');
+    renderAll();refreshProjectAdminRepos();toast(lfT(`已删除仓库「${repo.name||repo.id}」`,`Deleted repository "${repo.name||repo.id}"`),'ok');
   }catch(err){toast(err.message,'err')}
 }
 function bindProjectAdmin(){
@@ -530,7 +530,7 @@ function validateProjectPayload(value,{creating,projects=[],workflows=[],saved}=
   if(!value.name)return {field:'name',message:'项目名称不能为空'};
   if(!value.id)return {field:'id',message:'项目标识不能为空'};
   if(!value.key)return {field:'key',message:'项目 Key 不能为空'};
-  if(creating&&(value.id.toLowerCase()==='new'||projects.some(p=>String(p.id).toLowerCase()===value.id.toLowerCase())))return {field:'id',message:`项目标识「${value.id}」已被占用，请换一个`};
+  if(creating&&(value.id.toLowerCase()==='new'||projects.some(p=>String(p.id).toLowerCase()===value.id.toLowerCase())))return {field:'id',message:lfT(`项目标识「${value.id}」已被占用，请换一个`,`Project ID "${value.id}" is already taken; choose another`)};
   if(!creating&&!saved)return {field:'',message:'项目不存在或无权访问'};
   if(!value.workflowId||!workflows.some(w=>w.id===value.workflowId))return {field:'workflowId',message:'请选择有效的默认 SOP'};
   if(!value.ownerId)return {field:'ownerId',message:'请选择项目 Owner'};

@@ -34,7 +34,7 @@ function issueSelectionCheckbox(issue){
   if(!state.issueSelectionMode)return '';
   const allowed=issueCanDelete(issue),disabled=state.issueBulkDeleting||!allowed;
   const hint=allowed?'选择此需求':'澄清或执行中、已有成功记录的需求不能删除';
-  return `<label class="issue-select-label" title="${hint}" draggable="false"><input type="checkbox" class="issue-select-checkbox" data-issue-select="${escapeHTML(issue.id)}" aria-label="选择需求 ${escapeHTML(issue.title||issue.id)}"${state.issueSelection?.has(issue.id)?' checked':''}${disabled?' disabled':''}></label>`;
+  return `<label class="issue-select-label" title="${hint}" draggable="false"><input type="checkbox" class="issue-select-checkbox" data-issue-select="${escapeHTML(issue.id)}" aria-label="${escapeHTML(lfT(`选择需求 ${issue.title||issue.id}`,`Select requirement ${issue.title||issue.id}`))}"${state.issueSelection?.has(issue.id)?' checked':''}${disabled?' disabled':''}></label>`;
 }
 
 function renderIssueBulkActions(visibleIssues){
@@ -45,11 +45,11 @@ function renderIssueBulkActions(visibleIssues){
   if(!state.issueSelectionMode){host.innerHTML='';return}
   const selected=state.issueSelection.size,busy=state.issueBulkDeleting,progress=state.issueBulkDeleteProgress,result=state.issueBulkDeleteResult;
   const scope=state.issueView==='kanban'?'全选当前可删除需求':'全选本页可删除需求';
-  const buttonText=busy?(progress?`正在删除 ${progress.completed}/${progress.total}…`:'等待确认…'):'删除所选';
+  const buttonText=busy?(progress?lfT(`正在删除 ${progress.completed}/${progress.total}…`,`Deleting ${progress.completed}/${progress.total}…`):'等待确认…'):'删除所选';
   host.innerHTML=`<div class="issue-bulk-toolbar">
-    <div class="issue-bulk-summary">${issueSelectAllCheckbox(scope,true)}<span aria-live="polite">已选择 <b>${selected}</b> 项</span><small>可跨页选择；切换筛选条件会清空选择</small></div>
+    <div class="issue-bulk-summary">${issueSelectAllCheckbox(scope,true)}<span aria-live="polite">${lfT(`已选择 <b>${selected}</b> 项`,`<b>${selected}</b> selected`)}</span><small>可跨页选择；切换筛选条件会清空选择</small></div>
     <div class="issue-bulk-buttons"><button type="button" class="button ghost small" data-issue-cancel-selection${busy?' disabled':''}>取消</button><button type="button" class="button ghost small" data-issue-clear-selection${!selected||busy?' disabled':''}>清空选择</button><button type="button" class="button danger-outline small" data-issue-bulk-delete${!selected||busy?' disabled':''}>${buttonText}</button></div>
-  </div>${result?.failures.length?`<details class="issue-bulk-result" open><summary>已删除 ${result.deleted} 条，${result.failures.length} 条未删除</summary><ul>${result.failures.map(f=>`<li><b>${escapeHTML(f.title||f.id)}</b>：${escapeHTML(f.message)}</li>`).join('')}</ul></details>`:''}`;
+  </div>${result?.failures.length?`<details class="issue-bulk-result" open><summary>${lfT(`已删除 ${result.deleted} 条，${result.failures.length} 条未删除`,`Deleted ${result.deleted}; ${result.failures.length} not deleted`)}</summary><ul>${result.failures.map(f=>`<li><b>${escapeHTML(f.title||f.id)}</b>：${escapeHTML(f.message)}</li>`).join('')}</ul></details>`:''}`;
   host.querySelector('[data-issue-cancel-selection]').onclick=()=>setIssueSelectionMode(false);
   host.querySelector('[data-issue-clear-selection]').onclick=()=>{state.issueSelection.clear();renderIssueBulkActions(visibleIssues);bindIssueSelection(visibleIssues)};
   host.querySelector('[data-issue-bulk-delete]').onclick=deleteSelectedIssues;
@@ -97,11 +97,11 @@ async function deleteSelectedIssues(){
   const issues=filtered.filter(i=>state.issueSelection.has(i.id));
   if(!issues.length)return toast('请先选择可删除的需求');
   const scope=issueSelectionFilterKey(),external=issues.some(i=>i.source==='tapd'||i.source==='gongfeng');
-  const names=issues.slice(0,5).map(i=>`「${i.title||i.id}」`).join('、')+(issues.length>5?'等':'');
+  const names=issues.slice(0,5).map(i=>lfT(`「${i.title||i.id}」`,`"${i.title||i.id}"`)).join(lfT('、',', '))+(issues.length>5?lfT('等',' and more'):'');
   state.issueBulkDeleting=true;
   renderIssues();
   try{
-    if(!await afConfirm({title:'批量删除需求',message:`确定删除选中的 ${issues.length} 条需求（${names}）？需求、评论、澄清记录以及失败／取消的历史任务、运行记录、日志、产物和执行工作区将一并清理，且不可恢复。澄清或执行中、已有成功运行的需求不允许删除。${external?'此操作仅删除本地记录，不会删除 TAPD／工蜂原单，后续同步可能重新导入。':''}`,danger:true,confirmText:`确认删除 ${issues.length} 条需求`}))return;
+    if(!await afConfirm({title:'批量删除需求',message:lfT(`确定删除选中的 ${issues.length} 条需求（${names}）？需求、评论、澄清记录以及失败／取消的历史任务、运行记录、日志、产物和执行工作区将一并清理，且不可恢复。澄清或执行中、已有成功运行的需求不允许删除。${external?'此操作仅删除本地记录，不会删除 TAPD／工蜂原单，后续同步可能重新导入。':''}`,`Delete the ${issues.length} selected requirement${issues.length===1?'':'s'} (${names})? Requirements, comments, clarification records, and failed or cancelled tasks, runs, logs, artifacts and workspaces will all be removed. This cannot be undone. Requirements that are being clarified or run, or that have a successful run, can't be deleted.${external?' This only deletes the local records, not the original TAPD / Gongfeng items; a later sync may import them again.':''}`),danger:true,confirmText:lfT(`确认删除 ${issues.length} 条需求`,`Delete ${issues.length} requirement${issues.length===1?'':'s'}`)}))return;
     if(scope!==issueSelectionFilterKey())return toast('筛选条件已变化，请重新选择需求','info');
     const result={deleted:0,failures:[]};
     state.issueBulkDeleteResult=result;
@@ -123,7 +123,7 @@ async function deleteSelectedIssues(){
     }
     await refreshRuns();
     if(!result.failures.length)state.issueSelectionMode=false;
-    toast(result.failures.length?`已删除 ${result.deleted} 条需求，${result.failures.length} 条未删除，请查看失败原因`:`已删除 ${result.deleted} 条需求`,result.failures.length?'warn':'ok');
+    toast(result.failures.length?lfT(`已删除 ${result.deleted} 条需求，${result.failures.length} 条未删除，请查看失败原因`,`Deleted ${result.deleted} requirement${result.deleted===1?'':'s'}; ${result.failures.length} could not be deleted. See the reasons below.`):lfT(`已删除 ${result.deleted} 条需求`,`Deleted ${result.deleted} requirement${result.deleted===1?'':'s'}`),result.failures.length?'warn':'ok');
   }catch(err){toast(err.message,'err')}
   finally{
     state.issueBulkDeleting=false;

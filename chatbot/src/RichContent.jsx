@@ -14,6 +14,7 @@ import HarnessIcon from "./HarnessIcon";
 import SlidingTabs from "./SlidingTabs";
 import { attachmentURL, visibleText } from "./api";
 import { definitionTarget } from "./platform.js";
+import { t } from "./i18n.js";
 import {
   AgentBrowserLinks,
   agentBrowserTarget,
@@ -59,7 +60,7 @@ export function download(name, content, type = "text/plain") {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export function CopyButton({ value, label = "复制", className = "" }) {
+export function CopyButton({ value, label = t("复制", "Copy"), className = "" }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -83,8 +84,8 @@ export function CopyButton({ value, label = "复制", className = "" }) {
     <button
       className={`icon-button ${className}`}
       type="button"
-      aria-label={copied ? "已复制" : label}
-      title={copied ? "已复制" : label}
+      aria-label={copied ? t("已复制", "Copied") : label}
+      title={copied ? t("已复制", "Copied") : label}
       onClick={copy}
     >
       {copied ? <Check size={15} /> : <Copy size={15} />}
@@ -123,7 +124,10 @@ export function Diagram({ source }) {
         if (current)
           setResult({
             svg: "",
-            error: "图表语法需要调整，原始定义保留在下方。",
+            error: t(
+              "图表语法需要调整，原始定义保留在下方。",
+              "The diagram syntax needs fixing; the original definition is kept below.",
+            ),
           });
       }
     })();
@@ -135,7 +139,7 @@ export function Diagram({ source }) {
     <div className="diagram" dangerouslySetInnerHTML={{ __html: result.svg }} />
   ) : (
     <div className="diagram-loading">
-      {result.error || "正在绘制图表…"}
+      {result.error || t("正在绘制图表…", "Drawing diagram…")}
       {result.error ? <pre>{source}</pre> : null}
     </div>
   );
@@ -150,7 +154,7 @@ export function Slides({ source }) {
     <div className="slides">
       <div
         className={`slide ${currentPage === 0 ? "slide-cover" : ""}`}
-        aria-label={`幻灯片 ${currentPage + 1}`}
+        aria-label={t(`幻灯片 ${currentPage + 1}`, `Slide ${currentPage + 1}`)}
       >
         <div className="slide-eyebrow">{presentationTitle(source)}</div>
         <Markdown remarkPlugins={[remarkGfm]}>{slides[currentPage]}</Markdown>
@@ -163,7 +167,7 @@ export function Slides({ source }) {
           disabled={!currentPage}
           onClick={() => setPage(currentPage - 1)}
         >
-          上一页
+          {t("上一页", "Previous")}
         </button>
         <span>
           {currentPage + 1} / {slides.length}
@@ -172,7 +176,7 @@ export function Slides({ source }) {
           disabled={currentPage === slides.length - 1}
           onClick={() => setPage(currentPage + 1)}
         >
-          下一页
+          {t("下一页", "Next")}
         </button>
         <button
           className="slide-export"
@@ -183,14 +187,21 @@ export function Slides({ source }) {
             try {
               await exportPresentation(source);
             } catch {
-              setError("PPT 导出失败，请重试；内容已保留。");
+              setError(
+                t(
+                  "PPT 导出失败，请重试；内容已保留。",
+                  "PowerPoint export failed. Try again; the content is kept.",
+                ),
+              );
             } finally {
               setExporting(false);
             }
           }}
         >
           <Download size={14} />
-          {exporting ? "正在导出…" : "下载 PowerPoint"}
+          {exporting
+            ? t("正在导出…", "Exporting…")
+            : t("下载 PowerPoint", "Download PowerPoint")}
         </button>
       </div>
       {error ? (
@@ -209,14 +220,14 @@ export function CodeBlock({ language, source }) {
   return (
     <div className="code-block">
       <div className="code-toolbar">
-        <span>{language || "文本"}</span>
+        <span>{language || t("文本", "Text")}</span>
         <div>
           {visual ? (
             <button onClick={() => setPreview(!preview)}>
-              {preview ? "查看源码" : "预览"}
+              {preview ? t("查看源码", "View source") : t("预览", "Preview")}
             </button>
           ) : null}
-          <CopyButton value={source} label="复制代码" />
+          <CopyButton value={source} label={t("复制代码", "Copy code")} />
         </div>
       </div>
       {preview && language === "svg" ? (
@@ -228,7 +239,7 @@ export function CodeBlock({ language, source }) {
         <Diagram source={source} />
       ) : preview && language === "html" ? (
         <iframe
-          title="HTML 产物预览"
+          title={t("HTML 产物预览", "HTML artifact preview")}
           className="html-preview"
           sandbox="allow-scripts"
           key={source}
@@ -263,7 +274,7 @@ function AgentBrowserLink({ target, open, children }) {
       <button
         type="button"
         className="agent-browser-link"
-        title={`在 Agent 浏览器中打开 ${target}`}
+        title={t(`在 Agent 浏览器中打开 ${target}`, `Open ${target} in the Agent browser`)}
         onClick={() => open(target)}
       >
         {children}
@@ -338,10 +349,10 @@ const markdownComponents = {
   },
   img: ({ src, alt }) =>
     src?.startsWith("/api/assistant/attachments/") ? (
-      <ZoomableImage src={src} alt={alt || "图片"} />
+      <ZoomableImage src={src} alt={alt || t("图片", "Image")} />
     ) : (
       <span className="unavailable-image">
-        {alt || "图片"} · 请在产物中查看
+        {alt || t("图片", "Image")} · {t("请在产物中查看", "open it in Artifacts")}
       </span>
     ),
   table: ({ children }) => (
@@ -354,7 +365,8 @@ export function RichContent({ message, assets = [], projectId = "" }) {
   const text = typeof message === "string" ? message : visibleText(message);
   return (
     <MarkdownAssets.Provider value={{ assets, projectId }}>
-      <div className="markdown">
+      {/* Message text is never machine-translated; see i18n.js. */}
+      <div className="markdown" data-i18n-skip>
         <Markdown
           remarkPlugins={[remarkGfm, remarkWorkspaceLinks]}
           components={markdownComponents}
@@ -380,7 +392,7 @@ export function ImageLightbox({ src, alt, onClose }) {
       className="image-lightbox"
       role="dialog"
       aria-modal="true"
-      aria-label={`查看大图 ${alt || ""}`}
+      aria-label={t(`查看大图 ${alt || ""}`, `View full size ${alt || ""}`)}
       onClick={onClose}
     >
       <img src={src} alt={alt} onClick={(e) => e.stopPropagation()} />
@@ -405,7 +417,7 @@ export function ZoomableImage({ src, alt, className }) {
         className={className}
         src={src}
         alt={alt}
-        title="双击查看大图"
+        title={t("双击查看大图", "Double-click to view full size")}
         onDoubleClick={() => setZoom(true)}
       />
       {zoom ? (
@@ -628,7 +640,11 @@ export function ArtifactPreview({ artifact }) {
         <div className="artifact-preview-file-row">
           <FileText size={17} />
           <div className="artifact-preview-file-identity">
-            <p className="artifact-preview-file-name" title={artifact.name}>
+            <p
+              className="artifact-preview-file-name"
+              title={artifact.name}
+              data-i18n-data
+            >
               {artifact.name}
             </p>
             {artifact.source ? (

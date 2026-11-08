@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import HarnessIcon from "./HarnessIcon";
 import { IconButton } from "./ui";
 import { branchCompareUrl } from "./changes";
+import { t } from "./i18n.js";
 import "./changes-panel.css";
 
 // Rendering a huge generated file line by line is slower than it is useful.
@@ -46,7 +47,7 @@ function FileRow({ file, selected, onSelect }) {
       <span className={`change-status is-${file.status}`} aria-label={file.label}>
         {file.status}
       </span>
-      <span className="change-copy">
+      <span className="change-copy" data-i18n-data>
         <strong>{file.name}</strong>
         <small>{file.dir || file.repository || "工作区根目录"}</small>
       </span>
@@ -69,10 +70,10 @@ function BranchEntry({ repository }) {
   return (
     <>
       <small className="changes-branch">
-        工作分支 <code>{repository.workBranch}</code>
+        {t("工作分支", "Work branch")} <code>{repository.workBranch}</code>
         {repository.baseBranch && repository.baseBranch !== repository.workBranch ? (
           <>
-            ，基线 <code>{repository.baseBranch}</code>
+            {t("，基线", ", base")} <code>{repository.baseBranch}</code>
           </>
         ) : null}
       </small>
@@ -148,7 +149,7 @@ export default function ChangesPanel({ changes }) {
       <span className="changes-summary">
         {files.length ? (
           <>
-            <strong>{files.length}</strong> 个文件
+            <strong>{files.length}</strong> {t("个文件", files.length === 1 ? "file" : "files")}
             <i className="is-add">+{changes.additions || 0}</i>
             <i className="is-del">−{changes.deletions || 0}</i>
           </>
@@ -177,7 +178,7 @@ export default function ChangesPanel({ changes }) {
             <HarnessIcon name="chevron-left" size={13} />
             <span>返回改动列表</span>
           </button>
-          <span className="changes-detail-path" title={selected.path}>
+          <span className="changes-detail-path" title={selected.path} data-i18n-data>
             {selected.path}
           </span>
         </div>
@@ -201,7 +202,7 @@ export default function ChangesPanel({ changes }) {
                   该文件尚未纳入 git，下面是它的完整内容。
                 </p>
               ) : null}
-              <div className="diff-body">
+              <div className="diff-body" data-i18n-skip>
                 {shown.map((row, index) =>
                   row.kind === "hunk" ? (
                     <div className="diff-hunk" key={`h${index}`}>
@@ -215,7 +216,10 @@ export default function ChangesPanel({ changes }) {
               </div>
               {rows.length > shown.length ? (
                 <p className="changes-note">
-                  改动较大，仅展示前 {MAX_LINES} 行（共 {rows.length} 行）。
+                  {t(
+                    `改动较大，仅展示前 ${MAX_LINES} 行（共 ${rows.length} 行）。`,
+                    `Large change: showing the first ${MAX_LINES} of ${rows.length} lines.`,
+                  )}
                 </p>
               ) : null}
             </>

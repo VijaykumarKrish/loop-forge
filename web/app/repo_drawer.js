@@ -92,12 +92,12 @@ async function saveRepoDrawer(e){
     let defaultError='';
     if(nextDefault!==(project.defaultRepositoryId||'')){
       try{await saveProjectDefaultRepository(project,nextDefault)}
-      catch(err){defaultError=`仓库已保存，${makeDefault?'设为默认':'取消默认'}失败：${err.message}`}
+      catch(err){defaultError=lfT(`仓库已保存，${makeDefault?'设为默认':'取消默认'}失败：${err.message}`,`Repository saved, but ${makeDefault?'setting it as the default':'removing it as the default'} failed: ${err.message}`)}
     }
     closeRepoDrawer({restoreFocus:false});
     renderAll();
     refreshProjectAdminRepos(repo.id);
-    toast(defaultError||(editing?'仓库已保存':`仓库已添加${makeDefault&&!wasDefault?'，并设为默认':''}`),defaultError?'err':'ok');
+    toast(defaultError||(editing?'仓库已保存':makeDefault&&!wasDefault?lfT('仓库已添加，并设为默认','Repository added and set as the default'):'仓库已添加'),defaultError?'err':'ok');
   }catch(err){toast(err.message,'err')}
   finally{repoDrawerState.saving=false;const btn=$('#repoDrawerSave');if(btn)btn.disabled=false}
 }

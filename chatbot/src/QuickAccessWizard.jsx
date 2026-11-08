@@ -13,6 +13,7 @@ import SlidingTabs from "./SlidingTabs";
 import { api, canChatInProject, write } from "./api";
 import { usePanelPresence } from "./usePanelPresence";
 import { openCredentialSettings } from "./credentials";
+import { t } from "./i18n.js";
 import "./quick-access-wizard.css";
 
 const DEFAULT_SOP_ID = "generic-backend-delivery";
@@ -183,7 +184,7 @@ export function HarnessSelect({
       ? [
           {
             value: trimmed,
-            label: `使用 "${trimmed}"`,
+            label: t(`使用 "${trimmed}"`, `Use "${trimmed}"`),
             hint: "自定义",
             custom: true,
           },
@@ -480,7 +481,11 @@ function StatusPill({ ok, okLabel = "已就绪", needLabel = "待配置" }) {
 function VerifyMessage({ result, okText }) {
   const text = result.valid
     ? okText
-    : result.error || `缺少权限：${(result.missing || []).join("、")}`;
+    : result.error ||
+      t(
+        `缺少权限：${(result.missing || []).join("、")}`,
+        `Missing permissions: ${(result.missing || []).join(", ")}`,
+      );
   return (
     <p
       key={text}
@@ -514,6 +519,16 @@ function BusyLabel({ busy, busyLabel, children }) {
       </span>
     </span>
   );
+}
+
+/** Avatar letter for a role; in English it follows the translated name, not the stored Chinese one. */
+function roleInitial(name) {
+  const fallback = t("角", "R");
+  const raw = String(name || "").trim();
+  if (!raw) return fallback;
+  const shown = t(raw, window.lfTranslate?.(raw) || raw);
+  const letter = Array.from(shown)[0] || fallback;
+  return t(letter, /[\u3400-\u9fff]/.test(letter) ? fallback : letter.toUpperCase());
 }
 
 function parseGitHubRepo(raw) {
@@ -870,15 +885,18 @@ export default function QuickAccessWizard({
           (n) => n.type === "agent",
         ).length;
         const scopeLabel = workflow.generic
-          ? "平台默认模板"
+          ? t("平台默认模板", "Platform default template")
           : projectMode === "existing" &&
               workflow.projectId === currentProject?.id
-            ? "本项目已有 SOP（直接复用）"
-            : "共享 SOP";
+            ? t("本项目已有 SOP（直接复用）", "This project's SOP (reused as is)")
+            : t("共享 SOP", "Shared SOP");
         return {
           value: workflow.id,
           label: workflow.name,
-          hint: `${stageCount} 个阶段 · ${scopeLabel}`,
+          hint: t(
+            `${stageCount} 个阶段 · ${scopeLabel}`,
+            `${stageCount} ${stageCount === 1 ? "stage" : "stages"} · ${scopeLabel}`,
+          ),
         };
       }),
     [availableWorkflows, currentProject, projectMode],
@@ -984,7 +1002,10 @@ export default function QuickAccessWizard({
         } else {
           setProjectMode("create");
           const login = freshUser?.loginName || "team";
-          const suggestedName = `${freshUser?.chineseName || login} 的项目`;
+          const suggestedName = t(
+            `${freshUser?.chineseName || login} 的项目`,
+            `${freshUser?.chineseName || login}'s project`,
+          );
           setNewProjectName(suggestedName);
           setNewProjectId(slugifyProjectId(`${login}-project`) || "my-project");
           setNewProjectKey(deriveProjectKey(login));
@@ -1205,7 +1226,10 @@ export default function QuickAccessWizard({
         // settings), so "new project" must never land on an existing one.
         if (catalogProjects.some((item) => item.id === id)) {
           setError(
-            `项目标识「${id}」已被现有项目使用。请换一个标识，或切换到「选择已有项目」。`,
+            t(
+              `项目标识「${id}」已被现有项目使用。请换一个标识，或切换到「选择已有项目」。`,
+              `Project ID "${id}" is already used by an existing project. Choose another ID, or switch to "Choose existing project".`,
+            ),
           );
           return;
         }
@@ -1241,7 +1265,10 @@ export default function QuickAccessWizard({
         const key = deriveProjectKey(newProjectKey || id);
         if (catalogProjects.some((item) => item.id === id))
           throw new Error(
-            `项目标识「${id}」已被现有项目使用，请换一个标识。`,
+            t(
+              `项目标识「${id}」已被现有项目使用，请换一个标识。`,
+              `Project ID "${id}" is already used by an existing project. Choose another ID.`,
+            ),
           );
         targetProject = await write(
           "/api/projects",
@@ -1525,9 +1552,10 @@ export default function QuickAccessWizard({
                       快速接入已完成
                     </h3>
                     <p className="qa-lede qa-success-item" style={{ "--i": 1 }}>
-                      已关联默认角色与「
-                      {completedSummary?.workflow?.name || "通用后端交付 SOP"}
-                      」，现在可以直接在工作台对话或派发需求。
+                      {t(
+                        `已关联默认角色与「${completedSummary?.workflow?.name || "通用后端交付 SOP"}」，现在可以直接在工作台对话或派发需求。`,
+                        `Default roles and "${completedSummary?.workflow?.name || "Generic backend delivery SOP"}" are linked. You can now chat in the workbench or dispatch requirements.`,
+                      )}
                     </p>
                   </div>
 
@@ -1541,7 +1569,7 @@ export default function QuickAccessWizard({
                         {roles.slice(0, 6).map((role) => (
                           <li key={role.id}>
                             <span className="qa-avatar">
-                              {(role.name || "角").slice(0, 1)}
+                              {roleInitial(role.name)}
                             </span>
                             <span>{role.name}</span>
                             <small>默认角色</small>
@@ -1576,7 +1604,7 @@ export default function QuickAccessWizard({
                             size={14}
                           />
                           <span>
-                            GitHub 访问：
+                            {t("GitHub 访问：", "GitHub access: ")}
                             {completedSummary?.gitReady
                               ? "已就绪"
                               : "未配置，克隆/推送私有仓库前可在个人配置补齐"}
@@ -1598,7 +1626,7 @@ export default function QuickAccessWizard({
                             size={14}
                           />
                           <span>
-                            CodeBuddy API Key：
+                            {t("CodeBuddy API Key：", "CodeBuddy API Key: ")}
                             {completedSummary?.codeBuddyReady
                               ? "已配置"
                               : sponsoredModel
@@ -1609,11 +1637,16 @@ export default function QuickAccessWizard({
                         <li className="is-ok">
                           <HarnessIcon name="check" size={14} />
                           <span>
-                            项目：
-                            {completedSummary?.project?.name || "当前项目"}
+                            {t("项目：", "Project: ")}
+                            <span data-i18n-data>
+                              {completedSummary?.project?.name || "当前项目"}
+                            </span>
                             {completedSummary?.repository?.name
-                              ? ` · 仓库 ${completedSummary.repository.name}`
-                              : " · 仓库可在运行时指定"}
+                              ? t(
+                                  ` · 仓库 ${completedSummary.repository.name}`,
+                                  ` · repository ${completedSummary.repository.name}`,
+                                )
+                              : t(" · 仓库可在运行时指定", " · repository can be chosen at run time")}
                           </span>
                         </li>
                       </ul>
@@ -1691,7 +1724,10 @@ export default function QuickAccessWizard({
                   data-direction={direction}
                 >
                   <div className="qa-kicker">
-                    第 {activeStepIndex + 1} 步，共 {wizardStepCount} 步
+                    {t(
+                      `第 ${activeStepIndex + 1} 步，共 ${wizardStepCount} 步`,
+                      `Step ${activeStepIndex + 1} of ${wizardStepCount}`,
+                    )}
                   </div>
                   <h3 ref={headingRef} tabIndex={-1} className="qa-title">
                     {activeStep.title}
@@ -1768,7 +1804,10 @@ export default function QuickAccessWizard({
                           {gitVerify ? (
                             <VerifyMessage
                               result={gitVerify}
-                              okText={`令牌有效${gitVerify.login ? `（${gitVerify.login}）` : ""}`}
+                              okText={t(
+                                `令牌有效${gitVerify.login ? `（${gitVerify.login}）` : ""}`,
+                                `Token valid${gitVerify.login ? ` (${gitVerify.login})` : ""}`,
+                              )}
                             />
                           ) : null}
                           </details>
@@ -2021,8 +2060,9 @@ export default function QuickAccessWizard({
                               parsedRepo ? (
                                 <div className="qa-repo-default-row qa-msg-in">
                                   <span>
-                                    已识别 <code>{parsedRepo.project}</code>
-                                    ，同时设为项目默认仓库
+                                    {t("已识别 ", "Recognized ")}
+                                    <code>{parsedRepo.project}</code>
+                                    {t("，同时设为项目默认仓库", "; also make it the project's default repository")}
                                   </span>
                                   <HarnessSwitch
                                     checked={makeDefaultRepo}
@@ -2035,16 +2075,21 @@ export default function QuickAccessWizard({
                                   key="recognized"
                                   className="qa-hint is-ok qa-msg-in"
                                 >
-                                  已识别仓库：
+                                  {t("已识别仓库：", "Recognized repository: ")}
                                   <code>{parsedRepo.project}</code>
-                                  （仓库名 <code>{parsedRepo.name}</code>）
+                                  {t("（仓库名 ", " (repository name ")}
+                                  <code>{parsedRepo.name}</code>
+                                  {t("）", ")")}
                                 </p>
                               ) : (
                                 <p key="help" className="qa-hint">
-                                  支持粘贴 GitHub 仓库链接、
+                                  {t("支持粘贴 GitHub 仓库链接、", "Paste a GitHub repository link, ")}
                                   <code>
                                     git@github.com:owner/repo.git
-                                  </code> 或 <code>github:owner/repo</code>。
+                                  </code>
+                                  {t(" 或 ", " or ")}
+                                  <code>github:owner/repo</code>
+                                  {t("。", ".")}
                                 </p>
                               )}
                             </div>
@@ -2126,7 +2171,7 @@ export default function QuickAccessWizard({
                                   style={{ "--i": index * 2 + 2 }}
                                 >
                                   <strong>{node.name}</strong>
-                                  <span>阶段 {index + 1}</span>
+                                  <span>{t(`阶段 ${index + 1}`, `Stage ${index + 1}`)}</span>
                                 </div>
                               </React.Fragment>
                             ))}
@@ -2153,7 +2198,7 @@ export default function QuickAccessWizard({
                                 className="qa-role-chip"
                                 style={{ "--i": index }}
                               >
-                                <i>{(role.name || "角").slice(0, 1)}</i>
+                                <i>{roleInitial(role.name)}</i>
                                 <b>{role.name}</b>
                                 {role.description ? (
                                   <small>{role.description}</small>
@@ -2204,8 +2249,10 @@ export default function QuickAccessWizard({
                             <dd>
                               <span className="qa-dot is-ok" />
                               <span>
-                                {activeWorkflow?.name || "通用后端交付 SOP"}（
-                                {roles.length} 个默认角色）
+                                {t(
+                                  `${activeWorkflow?.name || "通用后端交付 SOP"}（${roles.length} 个默认角色）`,
+                                  `${activeWorkflow?.name || "Generic backend delivery SOP"} (${roles.length} default ${roles.length === 1 ? "role" : "roles"})`,
+                                )}
                               </span>
                             </dd>
                           </div>

@@ -57,6 +57,7 @@ import HarnessIcon from "./HarnessIcon";
 import QueuedMessages from "./QueuedMessages";
 import "./message-queue.css";
 import ConversationStatusIcon from "./ConversationStatusIcon";
+import { t } from "./i18n.js";
 import { SidebarSection } from "./SidebarPreview";
 import {
   splitSidebarSections,
@@ -166,8 +167,11 @@ const homeStarters = [
     title: "接入测试环境",
     description: "助手先查执行机器、镜像和沙箱，再按缺口一步步带你配好。",
     steps: ["执行机器", "镜像", "沙箱"],
-    prompt:
+    // The prompt lands in the composer, which the DOM translator leaves alone.
+    prompt: t(
       "带我一步步接入测试环境：先查看当前项目已有的执行机器、容器镜像、环境脚本和沙箱，告诉我还缺什么、按什么顺序配、每一步在哪里操作；能由你提交的配置，直接起草出来给我。",
+      "Walk me through connecting a test environment step by step: first check this project's existing execution machines, container images, environment scripts and sandboxes, tell me what is missing, in what order to set it up and where each step is done; draft any configuration you can submit for me.",
+    ),
   },
   {
     id: "sop",
@@ -176,8 +180,10 @@ const homeStarters = [
     title: "选用 SOP 与角色",
     description: "了解产品、前端、后端三套交付 SOP 和其中的角色，按需求推荐一套。",
     steps: ["产品", "前端", "后端"],
-    prompt:
+    prompt: t(
       "我准备写需求了。平台内置的产品、前端、后端交付 SOP 分别适合什么场景、好在哪里、里面有哪些角色？请结合当前项目推荐一套，并告诉我怎么绑定和派发第一条需求。我的需求是：",
+      "I'm about to write a requirement. What is each of the built-in product, frontend and backend delivery SOPs suited for, what are their strengths, and which roles do they include? Recommend one for this project and tell me how to bind it and dispatch the first requirement. My requirement is: ",
+    ),
   },
 ];
 
@@ -238,7 +244,9 @@ function AssistantTurn({ message, steps, assets, projectId }) {
         <RichContent message={answer} assets={assets} projectId={projectId} />
       </div>
       {message.unfinished ? (
-        <p className="reply-stopped">本轮未完成 · {message.unfinished}</p>
+        <p className="reply-stopped">
+          {t("本轮未完成", "This turn did not finish")} · {message.unfinished}
+        </p>
       ) : reply.stopped ? (
         <p className="reply-stopped">已停止，以上是停止前的内容。</p>
       ) : null}
@@ -296,7 +304,8 @@ function LiveMessage({ live, generation, finished = false }) {
 export default function App() {
   const realChat = useChat();
   const chat = useLocalConversations(realChat);
-  const sessionTitle = chat.session?.displayTitle || chat.session?.title || "新对话";
+  const sessionTitle =
+    chat.session?.displayTitle || chat.session?.title || t("新对话", "New chat");
   const titleReveal = useTitleReveal(
     chat.session?.id,
     sessionTitle,
@@ -446,7 +455,10 @@ export default function App() {
     const project = chat.projects.find((p) => p.id === id);
     if (project && !canChatInProject(project, chat.user)) {
       chat.setError(
-        `你还不是「${project.name}」的成员，不能在这个项目里对话。请项目 Owner 把你加入项目，或先用「个人对话」。`,
+        t(
+          `你还不是「${project.name}」的成员，不能在这个项目里对话。请项目 Owner 把你加入项目，或先用「个人对话」。`,
+          `You are not a member of "${project.name}", so you can't chat in this project. Ask a project Owner to add you, or use Personal chat for now.`,
+        ),
       );
       return;
     }
@@ -922,6 +934,7 @@ export default function App() {
       <button
         type="button"
         className="session-link"
+        data-i18n-data
         title={sessionTooltip(s, { projectName: options.projectName, replyLabel: status.label })}
         aria-haspopup="menu"
         aria-expanded={sessionContext?.id === s.id}
@@ -964,7 +977,7 @@ export default function App() {
           <span
             className="session-run"
             data-run-state={runState.state}
-            title={`运行状态：${runState.label}`}
+            title={t(`运行状态：${runState.label}`, `Run status: ${runState.label}`)}
           >
             {runState.label}
           </span>
@@ -1088,6 +1101,7 @@ export default function App() {
               />
               <button
                 disabled={chat.readOnly}
+                data-i18n-data
                 title={sessionTitle}
                 aria-label={sessionTitle}
                 className={titleReveal ? "title-typing" : undefined}
@@ -1149,8 +1163,15 @@ export default function App() {
                     ref={headerProjectPicker}
                     type="button"
                     className="conversation-project"
-                    title={`当前项目：${projectName}，点击切换项目`}
-                    aria-label={`当前项目：${projectName}，切换项目`}
+                    data-i18n-data
+                    title={t(
+                      `当前项目：${projectName}，点击切换项目`,
+                      `Current project: ${projectName}. Click to switch project`,
+                    )}
+                    aria-label={t(
+                      `当前项目：${projectName}，切换项目`,
+                      `Current project: ${projectName}, switch project`,
+                    )}
                     aria-haspopup="listbox"
                     aria-expanded={menu?.type === "header-project"}
                     onClick={() =>
@@ -1188,7 +1209,10 @@ export default function App() {
               type="button"
               className={`panel-toggle changes-toggle ${panel && panelView === "changes" ? "active" : ""}`}
               title="查看本次会话的代码改动"
-              aria-label={`查看改动，共 ${workspaceChanges.files.length} 个文件`}
+              aria-label={t(
+                `查看改动，共 ${workspaceChanges.files.length} 个文件`,
+                `View changes, ${workspaceChanges.files.length} files`,
+              )}
               aria-expanded={panel && panelView === "changes"}
               aria-controls="conversation-artifacts"
               onClick={() => {
@@ -1239,7 +1263,9 @@ export default function App() {
               ) : null}
             </span>
             {!panel && artifactUnread ? (
-              <span className="sr-only" id="artifact-unread-description">{artifactUnread} 个新产物</span>
+              <span className="sr-only" id="artifact-unread-description">
+                {t(`${artifactUnread} 个新产物`, `${artifactUnread} new artifacts`)}
+              </span>
             ) : null}
           </button> : null}
         </div>
@@ -1384,7 +1410,7 @@ export default function App() {
                             }))
                           }
                         >
-                          展开其余 {hidden} 条
+                          {t(`展开其余 ${hidden} 条`, `Show ${hidden} more`)}
                         </button>
                       ) : null}
                       {showAll && group.sessions.length > PROJECT_PREVIEW_LIMIT ? (
@@ -1479,7 +1505,7 @@ export default function App() {
                                 chat.users,
                               )}
                             />
-                            <span>
+                            <span data-i18n-data>
                               {
                                 authorFor(message, chat.session, chat.users)
                                   .name
@@ -1487,9 +1513,11 @@ export default function App() {
                             </span>
                             <MessageTime messages={messages} index={index} />
                           </div>
-                          <div className="user-bubble">{message.content}</div>
+                          <div className="user-bubble" data-i18n-skip>
+                            {message.content}
+                          </div>
                           {message.references?.length ? (
-                            <div className="message-references">
+                            <div className="message-references" data-i18n-data>
                               {message.references.map((ref) => (
                                 <span key={ref.type + ref.id}>
                                   @{ref.name || ref.id}
@@ -1614,11 +1642,18 @@ export default function App() {
                 }
                 onAsk={(item) => {
                   setText(
-                    `运行 ${item.runId} 的「${item.nodeName}」节点${item.kind === "failed" ? "失败了" : "在等待人工确认"}，帮我分析具体卡在哪里、原因是什么、需要谁做什么。`,
+                    item.kind === "failed"
+                      ? t(
+                          `运行 ${item.runId} 的「${item.nodeName}」节点失败了，帮我分析具体卡在哪里、原因是什么、需要谁做什么。`,
+                          `The "${item.nodeName}" node of run ${item.runId} failed. Help me find exactly where it is stuck, why, and who needs to do what.`,
+                        )
+                      : t(
+                          `运行 ${item.runId} 的「${item.nodeName}」节点在等待人工确认，帮我分析具体卡在哪里、原因是什么、需要谁做什么。`,
+                          `The "${item.nodeName}" node of run ${item.runId} is waiting for human approval. Help me find exactly where it is stuck, why, and who needs to do what.`,
+                        ),
                   );
-                  document
-                    .querySelector('textarea[aria-label="消息"]')
-                    ?.focus();
+                  // The aria-label is translated in English mode; use the ref.
+                  input.current?.focus();
                 }}
               />
             </div>
@@ -1649,10 +1684,16 @@ export default function App() {
               <div className="credential-notice" role="status">
                 <HarnessIcon name="key" size={15} aria-hidden="true" />
                 <span>
-                  当前执行器 CodeBuddy 需要先配置 CodeBuddy API Key。
+                  {t(
+                    "当前执行器 CodeBuddy 需要先配置 CodeBuddy API Key。",
+                    "The current executor, CodeBuddy, needs a CodeBuddy API Key first.",
+                  )}
                   {chat.user.codexApiKeyConfigured ||
                   chat.user.claudeCodeApiKeyConfigured
-                    ? "你已配置 Codex / Claude Code Key，也可以在输入框下方把执行器切换过去。"
+                    ? t(
+                        "你已配置 Codex / Claude Code Key，也可以在输入框下方把执行器切换过去。",
+                        " You have a Codex / Claude Code key configured, so you can also switch the executor below the message box.",
+                      )
                     : ""}
                 </span>
                 <button
@@ -1667,8 +1708,10 @@ export default function App() {
               <div className="readonly-notice" role="status">
                 <HarnessIcon name="eye" size={16} aria-hidden="true" />
                 <span>
-                  你不是「{projectName}
-                  」的成员，只能查看这个会话。加入项目后可以继续聊。
+                  {t(
+                    `你不是「${projectName}」的成员，只能查看这个会话。加入项目后可以继续聊。`,
+                    `You are not a member of "${projectName}", so this conversation is read-only. Join the project to keep chatting.`,
+                  )}
                 </span>
               </div>
             ) : (
@@ -1708,7 +1751,7 @@ export default function App() {
                       }
                     >
                       <HarnessIcon name="folder" size={14} />
-                      <span>
+                      <span data-i18n-data>
                         {chat.projectId
                           ? projectName
                           : chat.activeId
@@ -1762,12 +1805,12 @@ export default function App() {
                     }}
                   />
                   {attachments.length || pendingAttachments.length || references.length ? (
-                    <div className="composer-attachments">
+                    <div className="composer-attachments" data-i18n-data>
                       {pendingAttachments.map((a) => (
                         <span
                           key={a.id}
                           className="composer-attachment-thumb is-uploading"
-                          title={`正在上传 ${a.name}`}
+                          title={t(`正在上传 ${a.name}`, `Uploading ${a.name}`)}
                         >
                           <span className="composer-attachment-preview">
                             <img src={a.previewURL} alt={a.name} />
@@ -1783,8 +1826,8 @@ export default function App() {
                             <button
                               type="button"
                               className="composer-attachment-preview"
-                              title={`${a.name} · 点击查看大图`}
-                              aria-label={`查看图片 ${a.name}`}
+                              title={t(`${a.name} · 点击查看大图`, `${a.name} · Click to view full size`)}
+                              aria-label={t(`查看图片 ${a.name}`, `View image ${a.name}`)}
                               onClick={() =>
                                 setImagePreview({ src: url, name: a.name })
                               }
@@ -1794,8 +1837,8 @@ export default function App() {
                             <button
                               type="button"
                               className="composer-attachment-remove"
-                              aria-label={`移除 ${a.name}`}
-                              title={`移除 ${a.name}`}
+                              aria-label={t(`移除 ${a.name}`, `Remove ${a.name}`)}
+                              title={t(`移除 ${a.name}`, `Remove ${a.name}`)}
                               onClick={() => removeAttachment(a)}
                             >
                               <HarnessIcon name="close" size={11} />
@@ -1814,7 +1857,7 @@ export default function App() {
                               <small>{formatFileSize(a.size)}</small>
                             ) : null}
                             <button
-                              aria-label={`移除 ${a.name}`}
+                              aria-label={t(`移除 ${a.name}`, `Remove ${a.name}`)}
                               onClick={() => removeAttachment(a)}
                             >
                               <HarnessIcon name="close" size={13} />
@@ -1829,7 +1872,10 @@ export default function App() {
                         >
                           @{ref.name || ref.id}
                           <button
-                            aria-label={`移除引用 ${ref.name || ref.id}`}
+                            aria-label={t(
+                              `移除引用 ${ref.name || ref.id}`,
+                              `Remove reference ${ref.name || ref.id}`,
+                            )}
                             onClick={() => {
                               setReferences((old) =>
                                 old.filter(
@@ -2203,7 +2249,8 @@ export default function App() {
                 {searchGroups.map((group) => (
                   <section
                     key={group.projectId}
-                    aria-label={`${group.name}的搜索结果`}
+                    data-i18n-data
+                    aria-label={t(`${group.name}的搜索结果`, `Search results in ${group.name}`)}
                   >
                     <div className="date-label">{group.name}</div>
                     {group.sessions.map((s) => (
@@ -2220,7 +2267,7 @@ export default function App() {
                           {s.displayTitle || s.title}
                           <small>
                             {sessionProjectName(s.projectId, chat.projects)}
-                            {s.archived ? " · 已归档" : ""}
+                            {s.archived ? t(" · 已归档", " · Archived") : ""}
                           </small>
                         </span>
                       </button>
@@ -2253,8 +2300,10 @@ export default function App() {
             </label>
           ) : dialog.type === "delete" ? (
             <p>
-              删除“{dialog.session.title}”的聊天记录？本对话里还没提交 MR
-              的需求单会一并删除，已提交 MR 的需求和已保存的 SOP 会保留。
+              {t(
+                `删除“${dialog.session.title}”的聊天记录？本对话里还没提交 MR 的需求单会一并删除，已提交 MR 的需求和已保存的 SOP 会保留。`,
+                `Delete the chat history of "${dialog.session.title}"? Requirements in this conversation that have no MR yet are deleted too; requirements with a submitted MR and saved SOPs are kept.`,
+              )}
             </p>
           ) : dialog.type === "edit" ? (
             <>
@@ -2311,7 +2360,7 @@ export default function App() {
                 <span>执行机器</span>
                 <ChevronRightSmall />
               </button>
-              <small className="muted">
+              <small className="muted" data-i18n-data>
                 {chat.user?.chineseName || chat.user?.loginName}
               </small>
             </>

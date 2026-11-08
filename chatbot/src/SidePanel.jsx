@@ -5,6 +5,7 @@ import HarnessSelect from "./HarnessSelect";
 import { api, write, collectArtifacts } from "./api";
 import { ArtifactPreview, download } from "./RichContent";
 import { IconButton } from "./ui";
+import { t } from "./i18n.js";
 import {
   actionName,
   definitionTarget,
@@ -127,7 +128,11 @@ export function DraftCard({ artifact, onApply, onPreview, context = {} }) {
       </Title>
       <div className="operation-summary">
         {draft.review ? (
-          <p className="muted">帮我批准 · {draft.review.model || "AI 审查"}：{draft.review.rationale}</p>
+          <p className="muted">
+            {t("帮我批准", "Approve for me")} · {draft.review.model || t("AI 审查", "AI review")}
+            {t("：", ": ")}
+            <span data-i18n-skip>{draft.review.rationale}</span>
+          </p>
         ) : null}
         <p>{summary.effect}</p>
         {summary.fields.length ? (
@@ -135,7 +140,7 @@ export function DraftCard({ artifact, onApply, onPreview, context = {} }) {
             {summary.fields.map(([label, value]) => (
               <React.Fragment key={label}>
                 <dt>{label}</dt>
-                <dd>{String(value)}</dd>
+                <dd data-i18n-data>{String(value)}</dd>
               </React.Fragment>
             ))}
           </dl>
@@ -162,7 +167,7 @@ export function DraftCard({ artifact, onApply, onPreview, context = {} }) {
                     else setSelectedRepositories(next);
                   }}
                 />
-                <span>{repository.name || repository.id}</span>
+                <span data-i18n-data>{repository.name || repository.id}</span>
               </label>
             ))}
             {!repositories.length ? (
@@ -244,7 +249,7 @@ export function DraftCard({ artifact, onApply, onPreview, context = {} }) {
           ) : busy ? (
             "执行中…"
           ) : (
-            `确认${summary.title}`
+            t(`确认${summary.title}`, `Confirm: ${summary.title}`)
           )}
         </button>
       ) : null}

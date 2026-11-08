@@ -94,13 +94,13 @@ async function projectWizardCreate(){
     const saved=storeSavedProject(result,value);
     domainError=await saveProjectBusinessDomain(saved.id,String(d.businessDomainId||''),'');
     return saved;
-  },'创建失败，可修改项目名称后重试：');
+  },lfT('创建失败，可修改项目名称后重试：','Could not create the project. Change the name and try again: '));
   if(!stored||projectWizard!==w)return false;
   w.projectId=stored.id||value.id;
   if(!state.projectFilter){state.projectFilter=w.projectId;localStorage.setItem('agentflow.activeProject',w.projectId)}
   projectWizardMark('basic',true);
   renderAll();
-  toast(domainError?`项目已创建，业务域保存失败：${domainError}`:`项目已创建 · 标识 ${w.projectId} · Key ${stored.key||value.key}`,domainError?'err':'ok');
+  toast(domainError?lfT(`项目已创建，业务域保存失败：${domainError}`,`Project created, but the business domain could not be saved: ${domainError}`):lfT(`项目已创建 · 标识 ${w.projectId} · Key ${stored.key||value.key}`,`Project created · ID ${w.projectId} · Key ${stored.key||value.key}`),domainError?'err':'ok');
   projectWizardEnter('repos');
   return true;
 }
@@ -108,7 +108,7 @@ async function projectWizardAddRepo(){
   const w=projectWizard,project=projectWizardProject();if(!w||w.saving||!project)return false;
   const url=String(w.repo.url||'').trim(),info=parseGongfengRepoURL(url);
   if(!info)return projectWizardFail(url?'无法识别为 GitHub 仓库地址，请检查后重试':'请先粘贴 GitHub 仓库地址','repoUrl');
-  if(projectWizardRepos().some(r=>r.gongfengProjectId===info.project))return projectWizardFail(`仓库 ${info.project} 已经绑定到这个项目`,'repoUrl');
+  if(projectWizardRepos().some(r=>r.gongfengProjectId===info.project))return projectWizardFail(lfT(`仓库 ${info.project} 已经绑定到这个项目`,`Repository ${info.project} is already linked to this project`),'repoUrl');
   const payload={projectId:project.id,provider:info.provider||'gongfeng',name:info.name,gongfengProjectId:info.project,webUrl:info.webUrl,cloneUrl:info.cloneUrl,defaultBranch:String(w.repo.branch||'').trim()||'main',integrateBranch:String(w.repo.integrate||'').trim(),localPath:'',repoUrl:url};
   const makeDefault=projectNeedsDefaultRepository(project);
   let defaultError='';
@@ -116,7 +116,7 @@ async function projectWizardAddRepo(){
     const saved=await api('/api/repositories',{method:'POST',body:JSON.stringify(payload)});
     const list=state.data.repositories||(state.data.repositories=[]),ri=list.findIndex(r=>r.id===saved.id);
     if(ri>=0)list[ri]=saved;else list.push(saved);
-    if(makeDefault){try{await saveProjectDefaultRepository(project,saved.id)}catch(err){defaultError='仓库已保存，设为默认失败：'+err.message}}
+    if(makeDefault){try{await saveProjectDefaultRepository(project,saved.id)}catch(err){defaultError=lfT('仓库已保存，设为默认失败：','Repository saved, but it could not be set as the default: ')+err.message}}
     return saved;
   });
   if(!repo||projectWizard!==w)return false;
@@ -129,9 +129,9 @@ async function projectWizardRemoveRepo(repoId){
   const w=projectWizard,project=projectWizardProject(),repo=projectWizardRepos().find(r=>r.id===repoId);
   if(!w||w.saving||!project||!repo)return false;
   const name=repo.name||repo.gongfengProjectId||repo.id,isDefault=project.defaultRepositoryId===repo.id;
-  const confirmed=await afConfirm({title:'移除仓库',message:`确定移除仓库「${name}」吗？${isDefault?'\n\n这是当前的默认仓库，移除后会把剩余的第一个仓库设为默认。':''}`,danger:true,confirmText:'移除',cancelText:'取消'});
+  const confirmed=await afConfirm({title:'移除仓库',message:lfT(`确定移除仓库「${name}」吗？${isDefault?'\n\n这是当前的默认仓库，移除后会把剩余的第一个仓库设为默认。':''}`,`Remove repository "${name}"?${isDefault?'\n\nThis is the current default repository. After removal, the first remaining repository becomes the default.':''}`),danger:true,confirmText:'移除',cancelText:'取消'});
   if(!confirmed||projectWizard!==w)return false;
-  let notice=`已移除仓库「${name}」`,tone='ok';
+  let notice=lfT(`已移除仓库「${name}」`,`Removed repository "${name}"`),tone='ok';
   const ok=await projectWizardRequest(async()=>{
     await api('/api/repositories?id='+encodeURIComponent(repo.id),{method:'DELETE'});
     state.data.repositories=(state.data.repositories||[]).filter(r=>r.id!==repo.id);
@@ -139,8 +139,8 @@ async function projectWizardRemoveRepo(repoId){
       project.defaultRepositoryId='';
       const next=projectWizardRepos()[0];
       if(next){
-        try{await saveProjectDefaultRepository(project,next.id);notice+=`，已将「${next.name||next.gongfengProjectId||next.id}」设为默认仓库`}
-        catch(err){notice+='，设置新的默认仓库失败：'+err.message;tone='err'}
+        try{await saveProjectDefaultRepository(project,next.id);notice+=lfT(`，已将「${next.name||next.gongfengProjectId||next.id}」设为默认仓库`,`; "${next.name||next.gongfengProjectId||next.id}" is now the default repository`)}
+        catch(err){notice+=lfT('，设置新的默认仓库失败：','; could not set a new default repository: ')+err.message;tone='err'}
       }
     }
     return true;
@@ -230,7 +230,7 @@ function projectWizardRailHTML(w){
   return `<aside class="pw-rail"><div class="pw-rail-head"><div class="pw-brand">${pwIcon('folder',20,1.9)}</div><h2 id="projectWizardLabel">新建项目</h2><p>只需名称即可创建，再按步骤绑定仓库、邀请成员。</p></div><ol class="pw-steps">${steps}</ol><p class="pw-rail-foot">所有配置之后都能在项目设置里修改。</p></aside>`;
 }
 function projectWizardHeadHTML(w,title,lede){
-  return `<div class="pw-kicker">第 ${projectWizardStepIndex(w.step)+1} 步，共 ${projectWizardSteps().length-1} 步</div><h3 class="pw-title" id="projectWizardTitle" tabindex="-1">${title}</h3><p class="pw-lede">${lede}</p>${w.error?`<p class="pw-note is-err" role="alert">${escapeHTML(w.error)}</p>`:''}`;
+  return `<div class="pw-kicker">${lfT(`第 ${projectWizardStepIndex(w.step)+1} 步，共 ${projectWizardSteps().length-1} 步`,`Step ${projectWizardStepIndex(w.step)+1} of ${projectWizardSteps().length-1}`)}</div><h3 class="pw-title" id="projectWizardTitle" tabindex="-1">${title}</h3><p class="pw-lede">${lede}</p>${w.error?`<p class="pw-note is-err" role="alert">${escapeHTML(w.error)}</p>`:''}`;
 }
 function projectWizardNamePill(name){const filled=!!String(name||'').trim();return pwPill(filled?'已填写':'必填',filled?'ok':'need',' data-pw-name-pill')}
 function projectWizardBasicHTML(w){
@@ -259,9 +259,9 @@ function projectWizardReposHTML(w){
     +`<div class="pw-row2">${pwField('主分支',`<input class="pw-input pw-mono" id="pwRepoBranch" name="repoBranch" value="${escapeHTML(w.repo.branch)}" placeholder="main" spellcheck="false">`,{for:'pwRepoBranch'})}${pwField('集成分支',`<input class="pw-input pw-mono" id="pwRepoIntegrate" name="repoIntegrate" value="${escapeHTML(w.repo.integrate)}" placeholder="可选" spellcheck="false">`,{for:'pwRepoIntegrate'})}</div>`
     +`<div><button type="button" class="pw-btn pw-btn-outline pw-btn-sm" data-pw-action="add-repo"${w.saving?' disabled':''}>＋ 添加仓库</button></div>`;
   return projectWizardHeadHTML(w,'代码仓库','Agent 执行 SOP 时会克隆这些仓库并在工作分支上提交。第一个仓库会自动设为默认。')
-    +`<div class="pw-pane"><p class="pw-note is-ok">✓ 项目「${escapeHTML(project.name||'')}」已创建。仓库添加后立即生效，也可以先跳过。</p>${pwCard('绑定 GitHub 仓库','粘贴仓库地址，自动识别名称',pwPill(repos.length?`已绑定 ${repos.length} 个`:'未绑定',repos.length?'ok':''),body)}</div>`;
+    +`<div class="pw-pane"><p class="pw-note is-ok">${lfT(`✓ 项目「${escapeHTML(project.name||'')}」已创建。仓库添加后立即生效，也可以先跳过。`,`✓ Project "${escapeHTML(project.name||'')}" created. Repositories take effect as soon as you add them, or you can skip this for now.`)}</p>${pwCard('绑定 GitHub 仓库','粘贴仓库地址，自动识别名称',pwPill(repos.length?lfT(`已绑定 ${repos.length} 个`,`${repos.length} linked`):'未绑定',repos.length?'ok':''),body)}</div>`;
 }
-function projectWizardPeoplePill(d){const count=projectPeopleIds(d).length;return pwPill(`${count} 位`,count>1?'ok':'',' data-pw-people-pill')}
+function projectWizardPeoplePill(d){const count=projectPeopleIds(d).length;return pwPill(lfT(`${count} 位`,`${count} ${count===1?'person':'people'}`),count>1?'ok':'',' data-pw-people-pill')}
 function projectWizardMembersHTML(w){
   const d=w.draft,owner=userById(d.ownerId);
   const rows=(d.members||[]).map((m,i)=>`<div class="member-row pw-member" data-pw-member="${i}"><span class="member-avatar">${userAvatarHTML(userById(m.userId),48)}</span><span class="pw-member-kind">成员</span>${userCombobox(`member-${i}`,m.userId,'请选择项目成员')}<button type="button" class="pw-member-rm" data-pw-member-remove="${i}" title="移除成员" aria-label="移除成员">${pwIcon('x',14)}</button></div>`).join('');
@@ -281,15 +281,15 @@ function projectWizardSummary(project,repos){
   return [
     {key:'project',ok:true,label:'项目',value:`${escapeHTML(p.name||'')} · <code>${escapeHTML(p.id||'')}</code> · <code>${escapeHTML(p.key||'')}</code>`},
     {key:'sop',ok:!!sop,label:'默认 SOP',value:sop?escapeHTML(sop):'未配置'},
-    {key:'repos',ok:repos.length>0,label:'代码仓库',value:repos.length?`${repos.length} 个，默认 ${escapeHTML(def?.name||def?.gongfengProjectId||'未设置')}`:'未配置，可稍后在项目设置补充'},
-    {key:'members',ok:others>0,label:'项目成员',value:others?`${others+1} 位（含 Owner）`:'仅 Owner，可稍后邀请成员'},
+    {key:'repos',ok:repos.length>0,label:'代码仓库',value:repos.length?lfT(`${repos.length} 个，默认 ${escapeHTML(def?.name||def?.gongfengProjectId||'未设置')}`,`${repos.length}, default ${escapeHTML(def?.name||def?.gongfengProjectId||'not set')}`):'未配置，可稍后在项目设置补充'},
+    {key:'members',ok:others>0,label:'项目成员',value:others?lfT(`${others+1} 位（含 Owner）`,`${others+1} people (including the Owner)`):'仅 Owner，可稍后邀请成员'},
     {key:'tapd',ok:!!p.tapdWorkspaceId,label:'TAPD',value:p.tapdWorkspaceId?`Workspace <code>${escapeHTML(p.tapdWorkspaceId)}</code>${p.tapdIterationId?` · Iteration <code>${escapeHTML(p.tapdIterationId)}</code>`:''}`:'未配置，可稍后在项目设置补充'},
   ].filter(i=>i.key!=='tapd'||tapdIntegrationAvailable(p));
 }
 function projectWizardDoneHTML(){
   const project=projectWizardProject()||{},items=projectWizardSummary(project,projectWizardRepos());
   const list=items.map(i=>`<li class="${i.ok?'is-ok':'is-warn'}" data-pw-summary="${i.key}">${pwIcon(i.ok?'check':'warn',13,i.ok?2.6:2.2)}<span><b>${i.label}</b> · ${i.value}</span></li>`).join('');
-  return `<div class="pw-success-mark">${pwIcon('check',24,2.4)}</div><h3 class="pw-title" id="projectWizardTitle" tabindex="-1">项目「${escapeHTML(project.name||'')}」已创建</h3><p class="pw-lede">默认 SOP 已就绪，现在就可以开始第一条需求。跳过的配置随时可以在项目设置里补充。</p>
+  return `<div class="pw-success-mark">${pwIcon('check',24,2.4)}</div><h3 class="pw-title" id="projectWizardTitle" tabindex="-1">${lfT(`项目「${escapeHTML(project.name||'')}」已创建`,`Project "${escapeHTML(project.name||'')}" created`)}</h3><p class="pw-lede">默认 SOP 已就绪，现在就可以开始第一条需求。跳过的配置随时可以在项目设置里补充。</p>
     <section class="pw-summary"><div class="pw-summary-title">已生效配置</div><ul class="pw-status-list">${list}</ul></section>
     <div class="pw-actions"><button type="button" class="pw-action is-primary" data-pw-action="start"><span class="pw-action-icon">${pwIcon('play',16)}</span><span><strong>开始第一条需求</strong><small>切换到该项目，去需求列表新建或导入需求</small></span>${pwIcon('next',14,2.2)}</button><button type="button" class="pw-action" data-pw-action="settings"><span class="pw-action-icon">${pwIcon('gear',16,1.9)}</span><span><strong>进入项目设置</strong><small>修改基本信息，补充仓库、成员和 TAPD</small></span>${pwIcon('next',14,2.2)}</button></div>`;
 }

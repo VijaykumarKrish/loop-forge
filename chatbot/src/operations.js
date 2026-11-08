@@ -1,4 +1,5 @@
 import { actionName } from "./platform.js";
+import { t } from "./i18n.js";
 
 const canonical = (value) =>
   Array.isArray(value)
@@ -96,7 +97,10 @@ export function operationSummary(
   const sop = body.workflowId
     ? named("sop", body.workflowId)
     : draft.tool === "projects_save" && !existingProject
-      ? `${references.find((r) => r.type === "sop" && r.id === DEFAULT_PROJECT_WORKFLOW)?.name || "通用后端交付 SOP"}（默认）`
+      ? t(
+          `${references.find((r) => r.type === "sop" && r.id === DEFAULT_PROJECT_WORKFLOW)?.name || "通用后端交付 SOP"}（默认）`,
+          `${references.find((r) => r.type === "sop" && r.id === DEFAULT_PROJECT_WORKFLOW)?.name || "Generic backend delivery SOP"} (default)`,
+        )
       : "";
   const fields = [
     [
@@ -110,7 +114,7 @@ export function operationSummary(
       "代码仓库",
       repositoryIds(body)
         .map((id) => named("repository", id))
-        .join("、"),
+        .join(t("、", ", ")),
     ],
     ["SOP", sop],
     ["节点", body.nodeId],
@@ -130,7 +134,11 @@ export function operationSummary(
       projects_save: existingProject
         ? "修改这个项目的设置。"
         : "新建一个独立项目，不归属当前对话所在的项目。",
-    }[draft.tool] || `${actionName(draft.tool)}，使用下方列出的目标与参数。`;
+    }[draft.tool] ||
+    t(
+      `${actionName(draft.tool)}，使用下方列出的目标与参数。`,
+      `${actionName(draft.tool)} with the target and parameters listed below.`,
+    );
   return { title: actionName(draft.tool), fields, effect };
 }
 export function operationError(value) {

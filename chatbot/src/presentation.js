@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 // The source remains editable Markdown; export produces a real OOXML deck.
 export function presentationPages(source) {
   return source
@@ -11,7 +13,7 @@ const plain = (s) =>
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
 export function presentationTitle(source) {
-  return plain(source.match(/^#{1,6}\s+(.+)$/m)?.[1] || "演示文稿")
+  return plain(source.match(/^#{1,6}\s+(.+)$/m)?.[1] || t("演示文稿", "Presentation"))
     .replace(/[\\/:*?"<>|]/g, " ")
     .slice(0, 80);
 }
@@ -48,7 +50,7 @@ export async function createPresentation(source) {
     const title = plain(
       titleIndex >= 0
         ? lines.splice(titleIndex, 1)[0].replace(/^#{1,6}\s+/, "")
-        : `第 ${index + 1} 页`,
+        : t(`第 ${index + 1} 页`, `Slide ${index + 1}`),
     );
     const color = index === 0 ? "FFFFFF" : "142B45";
     slide.addText(title, {

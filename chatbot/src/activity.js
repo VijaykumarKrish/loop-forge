@@ -1,3 +1,4 @@
+import { isEnglish } from "./i18n.js";
 // Both the live stream and saved message metadata use this reducer. Tool updates
 // retain their original position; completion events never create duplicate rows.
 export function mergeActivity(previous = [], events = []) {
@@ -358,6 +359,7 @@ const groupNouns = {
   查看: "查看文件",
 };
 export function activityGroupSummary(steps = [], { active = false } = {}) {
+  if (isEnglish()) return activityGroupSummaryEn(steps, active);
   const parts = [];
   for (const step of steps) {
     if (step.kind === "thinking" || step.kind === "status") continue;
@@ -369,6 +371,34 @@ export function activityGroupSummary(steps = [], { active = false } = {}) {
   const text =
     parts.length > 3 ? `${parts.slice(0, 3).join("、")}等` : parts.join("、");
   return active ? `正在${text}` : `已${text}`;
+}
+const groupNounsEn = {
+  Running: "running commands",
+  Ran: "ran commands",
+  Reading: "reading files",
+  Read: "read files",
+  Editing: "editing files",
+  Edited: "edited files",
+  Searching: "searching code",
+  Searched: "searched code",
+  Browsing: "browsing the web",
+  Browsed: "browsed the web",
+  Viewing: "viewing files",
+  Viewed: "viewed files",
+};
+function activityGroupSummaryEn(steps, active) {
+  const parts = [];
+  for (const step of steps) {
+    if (step.kind === "thinking" || step.kind === "status") continue;
+    const face = activityFace(step);
+    const label = active ? face.busy : face.done;
+    const part = groupNounsEn[label] || label.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase());
+    if (!parts.includes(part)) parts.push(part);
+  }
+  if (!parts.length) return active ? "Thinking" : "Thought";
+  const text =
+    parts.length > 3 ? `${parts.slice(0, 3).join(", ")} and more` : parts.join(", ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 // The icon of the most frequent kind in a group.
 export function activityGroupKind(steps = []) {
@@ -435,7 +465,91 @@ export function activityForReply(message, generation, liveSteps = []) {
     return liveSteps;
   return [];
 }
+// English labels of the fixed faces below; named roles and platform tools are
+// composed in activityFaceEn.
+const FACE_EN = {
+  正在思考: "Thinking",
+  已思考: "Thought",
+  正在验证: "Verifying",
+  已验证: "Verified",
+  正在提交节点结果: "Submitting node result",
+  已提交节点结果: "Submitted node result",
+  正在打开工作区: "Opening workspace",
+  已打开工作区: "Opened workspace",
+  "正在提交 MR": "Submitting MR",
+  "已提交 MR": "Submitted MR",
+  正在更新计划: "Updating plan",
+  已更新计划: "Updated plan",
+  正在委派子任务: "Delegating subtask",
+  已委派子任务: "Delegated subtask",
+  正在查找工具: "Finding tools",
+  已查找工具: "Found tools",
+  正在查看工具说明: "Reading tool docs",
+  已查看工具说明: "Read tool docs",
+  正在运行: "Running",
+  已运行: "Ran",
+  正在生成图片: "Generating image",
+  已生成图片: "Generated image",
+  正在浏览: "Browsing",
+  已浏览: "Browsed",
+  正在编辑: "Editing",
+  已编辑: "Edited",
+  正在读取: "Reading",
+  已读取: "Read",
+  正在搜索: "Searching",
+  已搜索: "Searched",
+  "正在处理 SOP": "Processing SOP",
+  "已处理 SOP": "Processed SOP",
+  正在查看: "Viewing",
+  已查看: "Viewed",
+  正在调用工具: "Calling tool",
+  已调用工具: "Called tool",
+};
+const PLATFORM_NOUNS_EN = {
+  workflows: ["SOP", "SOPs"],
+  agents: ["role", "roles"],
+  issues: ["requirement", "requirements"],
+  runs: ["run", "runs"],
+  repositories: ["repository", "repositories"],
+  rules: ["rule", "rules"],
+  skills: ["skill", "skills"],
+};
+const PLATFORM_VERBS_EN = {
+  list: ["Listing", "Listed"],
+  get: ["Reading", "Read"],
+  save: ["Saving", "Saved"],
+  clone: ["Copying", "Copied"],
+  publish: ["Publishing", "Published"],
+};
+function activityFaceEn(step, face) {
+  if (face.kind === "status") return face;
+  const name = (step.tool || "")
+    .replace(/^mcp__agentflow_session__/, "")
+    .replace(/^agentflow__/, "")
+    .toLowerCase();
+  const who = step.role || step.subagent;
+  if (face.kind === "role" && who && /^(task|agent)$/.test(name))
+    return { ...face, busy: `"${who}" is working`, done: `"${who}" finished` };
+  const platform = name.match(
+    /^(workflows|agents|issues|runs|repositories|rules|skills)_(list|get|save|clone|publish)$/,
+  );
+  if (platform) {
+    const [, type, action] = platform;
+    const noun = PLATFORM_NOUNS_EN[type][action === "list" ? 1 : 0];
+    const [busy, done] = PLATFORM_VERBS_EN[action];
+    return { ...face, busy: `${busy} ${noun}`, done: `${done} ${noun}` };
+  }
+  return {
+    ...face,
+    busy: FACE_EN[face.busy] || face.busy,
+    done: FACE_EN[face.done] || face.done,
+  };
+}
 export function activityFace(step) {
+  const face = activityFaceZh(step);
+  return isEnglish() ? activityFaceEn(step, face) : face;
+}
+function activityFaceZh(step) {
   if (step.kind === "thinking")
     return { kind: "thinking", busy: "正在思考", done: "已思考" };
   if (step.kind === "status")

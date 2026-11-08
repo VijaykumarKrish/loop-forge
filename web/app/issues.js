@@ -83,11 +83,11 @@ function renderIssueAssigneeFilter(projectIssues=[]){
       const key=String(uid);
       if(userMap.has(key))return;
       const u=userById(uid);
-      userMap.set(key, u?userDisplay(u):`用户 ${key}`);
+      userMap.set(key, u?userDisplay(u):lfT(`用户 ${key}`,`User ${key}`));
     });
   });
   const owns=(i,id)=>String(i.assigneeUserId)===id||String(i.assigneeId)===id||(i.sopBindings||[]).some(b=>String(b.assigneeUserId)===id);
-  const meta=n=>n?` data-meta="${n} 条"`:'';
+  const meta=n=>n?` data-meta="${lfT(`${n} 条`,`${n}`)}"`:'';
   const unassigned=projectIssues.filter(i=>!i.assigneeUserId&&!i.assigneeId&&!(i.sopBindings||[]).some(b=>b.assigneeUserId)).length;
   let html=`<option value="">全部责任人</option><option value="unassigned"${meta(unassigned)}${current==='unassigned'?' selected':''}>未指定责任人</option>`;
   for(const [id, label] of userMap.entries()){
@@ -157,7 +157,7 @@ function renderIssues(){
   const emptyTitle=state.issueRunFilter==='attention'?'没有需要介入的工作项':state.issueRunFilter==='mr'?'没有待处理 MR 的需求':'当前项目没有匹配的工作项';
   const emptyHint=state.issueRunFilter==='attention'?'澄清未达标、门禁失败、运行失败或已中断的工作项会显示在这里。':state.issueRunFilter==='mr'?'已提 MR 但还没合入的需求会显示在这里。':'从 GitHub 同步，或在本平台新建需求。';
   const keyWidth=issueKeyColumnWidth(paged.items);
-  const pager=pagerHTML('issues',paged)||(paged.total?`<nav class="pager pager-summary" aria-label="分页"><span class="pager-meta">共 ${paged.total} 条</span></nav>`:'');
+  const pager=pagerHTML('issues',paged)||(paged.total?`<nav class="pager pager-summary" aria-label="分页"><span class="pager-meta">${lfT(`共 ${paged.total} 条`,`${paged.total} total`)}</span></nav>`:'');
   board.innerHTML=`<div class="issue-table-card"><div class="issue-table-scroll"><div class="issue-table${state.issueSelectionMode?' issue-table-selectable':''}" data-page-anchor="issues" style="--issue-col-key:${keyWidth}"><div class="issue-table-row issue-table-head" role="row">${state.issueSelectionMode?`<div class="issue-select-cell">${issueSelectAllCheckbox('全选本页可删除的需求')}</div>`:''}<span>编号</span><span>标题</span><span>来源</span><span>责任人</span><span>仓库</span><span>优先级</span><span>关联 SOP</span><span>当前环节</span><span>进度</span><span>操作</span></div><div class="issue-table-body">${paged.items.map(issueRow).join('')||`<div class="issue-table-empty">${huiIcon('search')}<b>${emptyTitle}</b><p>${emptyHint}</p></div>`}</div></div></div>${pager}</div>`;
   $$('.issue-table-row[data-id]').forEach(el=>el.onclick=()=>openIssueDetail(el.dataset.id));
   bindIssueRowActions(board);
@@ -379,7 +379,7 @@ function issueListProgress(i,run,w){
   return raw;
 }
 function issueRow(i){
-  const {project:p,run,workflow:w}=issueExecution(i),boundRepos=(state.data.repositories||[]).filter(x=>(i.repositoryIds||[]).includes(x.id)||x.id===i.repositoryId||(!((i.repositoryIds||[]).length||i.repositoryId)&&x.id===p?.defaultRepositoryId)),issueRepos=[boundRepos.find(x=>x.id===i.repositoryId),...boundRepos.filter(x=>x.id!==i.repositoryId)].filter(Boolean),repo=issueRepos[0],repoLabel=issueRepos.length>1?`${repo?.name||'未绑定'} 等${issueRepos.length}个`:repo?.name||'未绑定',health=issueRunHealth(i),stage=issueCurrentStage(i),progress=issueListProgress(i,run,w);
+  const {project:p,run,workflow:w}=issueExecution(i),boundRepos=(state.data.repositories||[]).filter(x=>(i.repositoryIds||[]).includes(x.id)||x.id===i.repositoryId||(!((i.repositoryIds||[]).length||i.repositoryId)&&x.id===p?.defaultRepositoryId)),issueRepos=[boundRepos.find(x=>x.id===i.repositoryId),...boundRepos.filter(x=>x.id!==i.repositoryId)].filter(Boolean),repo=issueRepos[0],repoLabel=issueRepos.length>1?lfT(`${repo?.name||'未绑定'} 等${issueRepos.length}个`,`${repo?.name||'Unbound'} +${issueRepos.length-1} more`):repo?.name||'未绑定',health=issueRunHealth(i),stage=issueCurrentStage(i),progress=issueListProgress(i,run,w);
   const sop=issueSOPLabel(i);
   const laneDots=issueLaneDots(i);
   const convo=conversationIssueProgress(i,run);
@@ -388,7 +388,7 @@ function issueRow(i){
   const needsClarify=requirementNeedsClarification(i);
   let progressText=`${progress.pct}%`;
   let progressCls='';
-  let progressTitle=`${progress.done}/${progress.total||0} 节点`;
+  let progressTitle=lfT(`${progress.done}/${progress.total||0} 节点`,`${progress.done}/${progress.total||0} nodes`);
   let trackWidth=progress.pct;
   if(convo){
     progressText=convo.text;
@@ -399,17 +399,17 @@ function issueRow(i){
     progressText='失败';
     progressCls=' fail';
     trackWidth=0;
-    progressTitle=`门禁或脚本执行失败（${progress.done}/${progress.total||0} 节点）`;
+    progressTitle=lfT(`门禁或脚本执行失败（${progress.done}/${progress.total||0} 节点）`,`A gate or script failed (${progress.done}/${progress.total||0} nodes)`);
   }else if(needsConfirm){
     progressText='需要确认结论';
     progressCls=' confirm';
     trackWidth=Math.min(100,Math.max(20,i.clarification?.score||100));
-    progressTitle=`澄清已完成（${i.clarification?.score||80} 分），需要确认结论后再触发 SOP`;
+    progressTitle=lfT(`澄清已完成（${i.clarification?.score||80} 分），需要确认结论后再触发 SOP`,`Clarification done (score ${i.clarification?.score||80}); confirm the conclusion before triggering the SOP`);
   }else if(needsClarify){
     progressText='待澄清';
     progressCls=' warn';
     trackWidth=0;
-    progressTitle=`信息完整度 ${i.clarification?.score||0} 分，未达准入线，需先澄清`;
+    progressTitle=lfT(`信息完整度 ${i.clarification?.score||0} 分，未达准入线，需先澄清`,`Completeness score ${i.clarification?.score||0} is below the project threshold; clarify first`);
   }else if(progress.pct>=100){
     progressCls=' done';
   }
@@ -454,8 +454,8 @@ function updateIssueBaseBranchInput(input,hint,repositoryIds){
   input.dataset.repositoryIds=ids;
   input.disabled=repos.length!==1;
   const mainBranch=repos.length===1?repos[0].defaultBranch:'';
-  input.placeholder=mainBranch?`留空从主分支 ${mainBranch} 新建`:'留空从各仓库配置的主分支新建';
-  if(hint)hint.textContent=repos.length!==1?'指定继续开发分支时请选择一个仓库；留空从各仓库配置的主分支分别新建工作分支。':'留空从配置主分支新建工作分支；填写时直接继续该已有分支，不新建。';
+  input.placeholder=mainBranch?lfT(`留空从主分支 ${mainBranch} 新建`,`Leave blank to branch from ${mainBranch}`):lfT('留空从各仓库配置的主分支新建','Leave blank to branch from each repository\'s main branch');
+  if(hint)hint.textContent=repos.length!==1?lfT('指定继续开发分支时请选择一个仓库；留空从各仓库配置的主分支分别新建工作分支。','To continue an existing branch, select exactly one repository. Leave blank to create a work branch from each repository\'s main branch.'):lfT('留空从配置主分支新建工作分支；填写时直接继续该已有分支，不新建。','Leave blank to create a work branch from the configured main branch. Enter a branch name to continue that existing branch instead.');
 }
 function refreshIssueBaseBranchInput(){
   renderIssueRepositoryBranchInputs($('#issueForm')?.elements.baseBranch,$('#issueBaseBranchHint'),$('#issueRepositoryBranches'),selectedIssueRepositoryIds());
@@ -475,8 +475,8 @@ function renderIssueRepositoryBranchInputs(input,hint,host,repositoryIds,branche
   input.hidden=repos.length>1;
   if(repos.length===1)input.value=branches[repos[0].id]||'';
   host.hidden=repos.length<2;
-  host.innerHTML=repos.length<2?'':repos.map(repo=>`<label class="repository-branch-row"><span>${escapeHTML(repo.name)}</span><input class="input" data-repository-branch="${escapeHTML(repo.id)}" aria-label="${escapeHTML(repo.name)} 的继续开发分支" value="${escapeHTML(branches[repo.id]||'')}" placeholder="${escapeHTML(repo.defaultBranch?`留空从主分支 ${repo.defaultBranch} 新建`:'留空从配置主分支新建')}" autocomplete="off"></label>`).join('');
-  if(repos.length>1&&hint)hint.textContent='分别填写各仓库的已有功能分支，直接继续开发；留空的仓库从各自配置的主分支新建工作分支。';
+  host.innerHTML=repos.length<2?'':repos.map(repo=>`<label class="repository-branch-row"><span>${escapeHTML(repo.name)}</span><input class="input" data-repository-branch="${escapeHTML(repo.id)}" aria-label="${escapeHTML(lfT(`${repo.name} 的继续开发分支`,`Branch to continue in ${repo.name}`))}" value="${escapeHTML(branches[repo.id]||'')}" placeholder="${escapeHTML(repo.defaultBranch?lfT(`留空从主分支 ${repo.defaultBranch} 新建`,`Leave blank to branch from ${repo.defaultBranch}`):lfT('留空从配置主分支新建','Leave blank to branch from the configured main branch'))}" autocomplete="off"></label>`).join('');
+  if(repos.length>1&&hint)hint.textContent=lfT('分别填写各仓库的已有功能分支，直接继续开发；留空的仓库从各自配置的主分支新建工作分支。','Enter an existing feature branch per repository to continue it; repositories left blank get a new work branch from their configured main branch.');
 }
 function fillIssueAssignees(projectId,value=''){
   const f=$('#issueForm'),picker=$('#issueAssigneePicker');if(!f||!picker)return;
@@ -529,9 +529,9 @@ function openIssue(issue=null){
     });
   }
   showManualBinding();
-  if(note){note.hidden=isNew||!v.externalRef;const text=$('#issueBoundNoteText');if(text&&v.externalRef){const src=v.externalRef.source==='github'?'GitHub Issue':v.externalRef.source==='tapd'?'TAPD':v.externalRef.source==='gongfeng'?'工蜂 Issue':'外部';const id=v.externalRef.externalIid||v.externalRef.externalId||'';text.innerHTML=`已关联 ${src} <b>${escapeHTML(String(id))}</b>。保存只改本平台记录，不会回写外部单据。`}}
+  if(note){note.hidden=isNew||!v.externalRef;const text=$('#issueBoundNoteText');if(text&&v.externalRef){const src=v.externalRef.source==='github'?'GitHub Issue':v.externalRef.source==='tapd'?'TAPD':v.externalRef.source==='gongfeng'?lfT('工蜂 Issue','Gongfeng issue'):lfT('外部','external');const id=v.externalRef.externalIid||v.externalRef.externalId||'';text.innerHTML=lfT(`已关联 ${src} <b>${escapeHTML(String(id))}</b>。保存只改本平台记录，不会回写外部单据。`,`Linked to ${src} <b>${escapeHTML(String(id))}</b>. Saving only changes this platform's record; the external item is not updated.`)}}
   const submit=document.querySelector('#issueForm button[type="submit"]');
-  if(submit)submit.textContent=isNew?'创建需求':'保存';
+  if(submit)submit.textContent=isNew?lfT('创建需求','Create requirement'):lfT('保存','Save');
   $('#issueModal').classList.add('open');
 }
 function issueFromForm(){

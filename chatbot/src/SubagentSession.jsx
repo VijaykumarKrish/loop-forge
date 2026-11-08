@@ -4,6 +4,7 @@ import SlidingTabs from "./SlidingTabs";
 import ActivityTrace from "./ActivityTrace";
 import { RichContent } from "./RichContent";
 import { resumeMissed } from "./activity";
+import { t } from "./i18n.js";
 
 export function subagentStatus(agent, live) {
   const last = agent.dispatches.at(-1);
@@ -97,8 +98,11 @@ export function SubagentSession({ agent, live = false, artifacts = [], onOpenArt
                     </article>
                   ) : null}
                   {resumeMissed(step) ? (
-                    <p className="muted subagent-resume-missed" role="note">
-                      复用未生效：没有接着 {step.resumed} 做，已新开子 Agent。
+                    <p className="muted subagent-resume-missed" role="note" data-i18n-data>
+                      {t(
+                        `复用未生效：没有接着 ${step.resumed} 做，已新开子 Agent。`,
+                        `Reuse did not take effect: it did not continue from ${step.resumed}, so a new sub-agent was started.`,
+                      )}
                     </p>
                   ) : null}
                   {steps.length || running ? (

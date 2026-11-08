@@ -11,6 +11,7 @@ import {
   nodeConversationItems,
 } from "./node-conversation.js";
 import { approvalWaitReason } from "./runs.js";
+import { t } from "./i18n.js";
 
 const GitBranch = (props) => <HarnessIcon name="workflow" {...props} />;
 const X = (props) => <HarnessIcon name="close" {...props} />;
@@ -65,13 +66,13 @@ function NodeArtifact({ run, artifact, onPreview }) {
         onClick={() => onPreview(file)}
         onDoubleClick={image ? () => setZoom(true) : undefined}
         title={image ? "单击预览，双击查看大图" : undefined}
-        aria-label={`预览 ${file.name}`}
+        aria-label={t(`预览 ${file.name}`, `Preview ${file.name}`)}
       >
         {image ? <img src={file.url} alt={file.name} loading="lazy" /> : null}
         <span className="node-artifact-file">
           {image ? <FileImage size={18} /> : <FileText size={18} />}
           <span>
-            <strong>{file.name}</strong>
+            <strong data-i18n-data>{file.name}</strong>
             <small>
               {image ? "图片" : "文件"}
               {file.size
@@ -86,7 +87,7 @@ function NodeArtifact({ run, artifact, onPreview }) {
         className="icon-button node-artifact-download"
         href={file.url}
         download={file.name}
-        aria-label={`下载 ${file.name}`}
+        aria-label={t(`下载 ${file.name}`, `Download ${file.name}`)}
       >
         <Download size={15} />
       </a>
@@ -356,7 +357,10 @@ export default function SopRunPanel({
               {runStatus[run.status] || run.status}
             </span>
             <small>
-              {completed} / {nodes.length} 个节点已完成
+              {t(
+                `${completed} / ${nodes.length} 个节点已完成`,
+                `${completed} / ${nodes.length} nodes completed`,
+              )}
             </small>
             <div className="sop-progress">
               <i
@@ -419,9 +423,12 @@ export default function SopRunPanel({
                   >
                     <FileText size={17} />
                     <span>
-                      <strong>{a.path || a.name}</strong>
+                      <strong data-i18n-data>{a.path || a.name}</strong>
                       <small>
-                        第 {a.attempt} 次执行 · {a.size} 字节
+                        {t(
+                          `第 ${a.attempt} 次执行 · ${a.size} 字节`,
+                          `Attempt ${a.attempt} · ${a.size} bytes`,
+                        )}
                       </small>
                     </span>
                     <ChevronRight size={14} />

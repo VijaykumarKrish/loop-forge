@@ -276,9 +276,9 @@ function issueOutcome(i){
   }
   if(requirementNeedsClarification(i)){
     const score=i.clarification?.score||0,threshold=clarificationPolicy((state.data.projects||[]).find(p=>p.id===i.projectId)).threshold||80;
-    return{key:'attention',short:'待澄清',title:'需要你补充澄清',body:`导入评分 ${score} 分，未达准入线 ${threshold} 分。请先回答澄清问题后再触发 SOP。`};
+    return{key:'attention',short:'待澄清',title:'需要你补充澄清',body:lfT(`导入评分 ${score} 分，未达准入线 ${threshold} 分。请先回答澄清问题后再触发 SOP。`,`Import score ${score} is below the threshold of ${threshold}. Answer the clarification questions before triggering the SOP.`)};
   }
-  if(conversationWorkspaceIssue(i)){const c=conversationIssueStage(i);return{key:c.ended?'idle':c.key==='closed'?'closed':'active',short:c.short,title:`对话交付 · ${c.label}`,body:c.hint};}
+  if(conversationWorkspaceIssue(i)){const c=conversationIssueStage(i);return{key:c.ended?'idle':c.key==='closed'?'closed':'active',short:c.short,title:lfT(`对话交付 · ${c.label}`,`Chat delivery · ${window.lfTranslate?window.lfTranslate(c.label):c.label}`),body:c.hint};}
   if(latestIssueRun(i)?.status==='cancelled')return{key:'attention',short:'已取消',title:'运行已取消',body:'这次运行已结束且工作区已清理，不能接着原记录重试。可以重新触发整条 SOP。'};
   if(health==='attention')return{key:'attention',short:'失败',title:'运行失败',body:`停在「${stage.label}」。可从失败节点重试，或整条重新触发。`};
   if(stage.key==='waiting')return{key:'waiting',short:'待确认',title:'等待确认',body:`「${stage.label}」需要批准后才会继续。`};

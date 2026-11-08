@@ -9,6 +9,7 @@ import React, {
 import HarnessIcon from "./HarnessIcon";
 import { api } from "./api";
 import { referenceTypes } from "./mentions.js";
+import { t } from "./i18n.js";
 import { usePanelPresence } from "./usePanelPresence";
 import "./mention-context.css";
 
@@ -221,7 +222,10 @@ export default forwardRef(function MentionPicker(
           aria-label="搜索引用对象"
           placeholder={
             type
-              ? `搜索${referenceTypes.find((x) => x.type === type)?.label}…`
+              ? t(
+                  `搜索${referenceTypes.find((x) => x.type === type)?.label}…`,
+                  `Search ${{ agent: "roles", skill: "skills", issue: "requirements", sop: "SOPs", run: "runs", repository: "repositories" }[type] || "objects"}…`,
+                )
               : "搜索所有对象…"
           }
           value={query}
@@ -241,8 +245,10 @@ export default forwardRef(function MentionPicker(
         >
           <HarnessIcon name="doc" size={16} />
           <span>会话主需求</span>
-          <small>
-            {issueId ? `已关联 · ${currentIssue?.name || issueId}` : "未关联"}
+          <small data-i18n-data>
+            {issueId
+              ? t(`已关联 · ${currentIssue?.name || issueId}`, `Linked · ${currentIssue?.name || issueId}`)
+              : t("未关联", "Not linked")}
           </small>
           <HarnessIcon name="chevron-right" size={14} />
         </button>
@@ -261,7 +267,7 @@ export default forwardRef(function MentionPicker(
               onClick={() => choose(option)}
             >
               <HarnessIcon name={icon} size={18} />
-              <span>
+              <span data-i18n-data>
                 <strong>
                   {categories ? option.label : option.name || option.id}
                 </strong>
@@ -271,7 +277,7 @@ export default forwardRef(function MentionPicker(
                     : [
                         referenceTypes.find((x) => x.type === option.type)
                           ?.label,
-                        option.projectName || "共享",
+                        option.projectName || t("共享", "Shared"),
                         option.id,
                       ].join(" · ")}
                 </small>

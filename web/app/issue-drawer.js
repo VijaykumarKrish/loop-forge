@@ -523,7 +523,7 @@ function issueProgressActionsHTML(issue,run,{includeIssueActions=false}={}){
     if(issue.source==='tapd'&&issue.externalRef?.externalId)issueActions.push(`<button class="button ghost small" data-resync-tapd="${escapeHTML(issue.id)}">从 TAPD 同步</button>`);
   }
   const group=(title,items)=>items.some(Boolean)?`<div class="issue-action-group"><span>${title}</span><div class="issue-action-group-buttons">${items.filter(Boolean).join('')}</div></div>`:'';
-  const groups=[group('流程处理',workflowActions),group('排查记录',logActions),group('需求管理',issueActions)].filter(Boolean);
+  const groups=[group(lfT('流程处理','Workflow'),workflowActions),group(lfT('排查记录','Troubleshooting'),logActions),group(lfT('需求管理','Manage'),issueActions)].filter(Boolean);
   return groups.length?`<div class="issue-action-groups">${groups.join('')}</div>`:'';
 }
 function overviewPane(issue,data){
@@ -767,10 +767,10 @@ function conversationRepoCards(issue,data){
     const root=safeURL(String(c.webUrl||'').trim().replace(/\.git$/,'').replace(/\/+$/,''));
     const ns=c.path&&lower(c.path).endsWith(`/${lower(c.name)}`)?c.path.slice(0,-c.name.length):'';
     const nameHTML=`${ns?`<span>${escapeHTML(ns)}</span>`:''}<b>${escapeHTML(c.name)}</b>`;
-    const name=root&&root!=='#'?`<a class="conv-repo-name" href="${escapeHTML(root)}" ${newTab} title="在${platform}打开仓库 ${escapeHTML(c.path||c.name)}">${nameHTML}</a>`:`<div class="conv-repo-name">${nameHTML}</div>`;
+    const name=root&&root!=='#'?`<a class="conv-repo-name" href="${escapeHTML(root)}" ${newTab} title="${escapeHTML(lfT(`在${platform}打开仓库 ${c.path||c.name}`,`Open repository ${c.path||c.name} on ${platform}`))}">${nameHTML}</a>`:`<div class="conv-repo-name">${nameHTML}</div>`;
     const badge=mr?`<span class="hui-badge" data-size="sm" data-tone="${conversationMRBadgeTone[state]||'neutral'}"><span class="hui-badge-label">${mrWord} ${escapeHTML(deliveryMRStateText[state]||'状态未知')}</span></span>`
-      :`<span class="hui-badge" data-size="sm" data-tone="${directPush?'info':'muted'}"><span class="hui-badge-label">${directPush?'已直推':`未提交 ${mrWord}`}</span></span>`;
-    const work=c.work?(links.tree?`<a class="conv-branch" href="${escapeHTML(safeURL(links.tree))}" ${newTab} title="在${platform}打开分支 ${escapeHTML(c.work)}">${escapeHTML(c.work)}</a>`:`<span class="conv-branch">${escapeHTML(c.work)}</span>`):'<span class="conv-branch is-empty">没有工作分支记录</span>';
+      :`<span class="hui-badge" data-size="sm" data-tone="${directPush?'info':'muted'}"><span class="hui-badge-label">${directPush?'已直推':lfT(`未提交 ${mrWord}`,`No ${mrWord} yet`)}</span></span>`;
+    const work=c.work?(links.tree?`<a class="conv-branch" href="${escapeHTML(safeURL(links.tree))}" ${newTab} title="${escapeHTML(lfT(`在${platform}打开分支 ${c.work}`,`Open branch ${c.work} on ${platform}`))}">${escapeHTML(c.work)}</a>`:`<span class="conv-branch">${escapeHTML(c.work)}</span>`):'<span class="conv-branch is-empty">没有工作分支记录</span>';
     const tail=!target?'':target===c.work?'<span class="conv-flow-note">直接提交在这个分支上</span>':`<span class="conv-arrow" aria-hidden="true">→</span><span class="conv-branch is-base" title="目标分支">${escapeHTML(target)}</span>`;
     const flow=`<div class="conv-repo-flow">${work}${tail}</div>`;
     const acts=[
@@ -998,6 +998,6 @@ async function renderIssueConversations(issue,host){
     const intro=document.createElement('p');intro.className='muted';intro.textContent='仅展示你有权限访问的会话。私人会话仍仅自己可见。';host.append(intro);
     const start=document.createElement('a');start.className='btn btn-primary';start.href=link('');start.target='_blank';start.rel='noopener';start.textContent='围绕此需求新建会话';host.append(start);
     if(!rows.length){const empty=document.createElement('p');empty.className='detail-empty';empty.textContent='还没有可见的关联会话';host.append(empty)}
-    rows.forEach(s=>{const a=document.createElement('a');a.href=link(s.id);a.target='_blank';a.rel='noopener';a.className='issue-conversation-link';a.style.cssText='display:block;padding:12px 0;border-bottom:1px solid var(--border,#eee)';const name=document.createElement('strong');name.textContent=s.title||'新对话';const meta=document.createElement('small');meta.style.cssText='display:block;color:var(--muted)';meta.textContent=(s.shared?'共享运行会话':'私人会话')+' · '+(s.participants||[]).length+' 人发过言';a.append(name,meta);host.append(a)});
-  }catch(e){if(state.issueDetailData?.issue?.id===key&&state.issueDetailTab==='conversations')host.textContent='加载关联会话失败：'+e.message}
+    rows.forEach(s=>{const a=document.createElement('a');a.href=link(s.id);a.target='_blank';a.rel='noopener';a.className='issue-conversation-link';a.style.cssText='display:block;padding:12px 0;border-bottom:1px solid var(--border,#eee)';const name=document.createElement('strong');name.textContent=s.title||'新对话';const meta=document.createElement('small');meta.style.cssText='display:block;color:var(--muted)';meta.textContent=(s.shared?'共享运行会话':'私人会话')+' · '+lfT(`${(s.participants||[]).length} 人发过言`,`${(s.participants||[]).length} participant${(s.participants||[]).length===1?'':'s'}`);a.append(name,meta);host.append(a)});
+  }catch(e){if(state.issueDetailData?.issue?.id===key&&state.issueDetailTab==='conversations')host.textContent=lfT('加载关联会话失败：','Failed to load linked conversations: ')+e.message}
 }

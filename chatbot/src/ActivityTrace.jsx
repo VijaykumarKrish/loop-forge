@@ -11,6 +11,7 @@ import {
 import { elapsedSeconds, formatElapsed } from "./api";
 import { RichContent } from "./RichContent";
 import { CredentialAction } from "./ui";
+import { t } from "./i18n.js";
 
 const Brain = (props) => <HarnessIcon name="brain" {...props} />;
 const Terminal = (props) => <HarnessIcon name="terminal" {...props} />;
@@ -61,7 +62,7 @@ function Step({ step, live, interrupted }) {
       : pending
         ? face.busy
         : face.kind === "command" && duration >= 1
-          ? `已在${formatElapsed(duration)}内运行`
+          ? t(`已在${formatElapsed(duration)}内运行`, `Ran for ${formatElapsed(duration)}`)
           : face.done;
   return (
     <div
@@ -93,6 +94,7 @@ function Step({ step, live, interrupted }) {
             {target ? (
               <span
                 className={`execution-step-target ${["read", "edit"].includes(face.kind) ? "is-file" : ""}`}
+                data-i18n-data
                 title={step.detail || target}
               >
                 {target}
@@ -105,7 +107,7 @@ function Step({ step, live, interrupted }) {
             <div className="execution-item-expanded">
               {duration !== null ? (
                 <small className="execution-duration">
-                  耗时 {formatElapsed(duration)}
+                  {t("耗时", "Took")} {formatElapsed(duration)}
                 </small>
               ) : null}
               {step.kind === "thinking" && step.text ? (
@@ -252,7 +254,7 @@ function ActivityGroup({ block, live, interrupted, expandAll }) {
           </span>
           {failed.length ? (
             <span className="execution-group-failed-count">
-              {failed.length} 步失败
+              {t(`${failed.length} 步失败`, `${failed.length} failed`)}
             </span>
           ) : null}
           <ChevronRight className="execution-group-chevron" size={13} />
@@ -347,7 +349,9 @@ export default function ActivityTrace({
     return (
       <div className="reply-timing execution-trace is-live">
         <div className="execution-summary-row">
-          <span className="live-elapsed">正在处理{elapsed}</span>
+          <span className="live-elapsed">
+            {t(`正在处理${elapsed}`, `Working${elapsed}`)}
+          </span>
         </div>
         {divider}
         <div className="execution-body" aria-label="执行过程">
@@ -375,7 +379,9 @@ export default function ActivityTrace({
     >
       <summary>
         <span className="execution-summary-row">
-          <span className="execution-total">已处理{elapsed}</span>
+          <span className="execution-total">
+            {t(`已处理${elapsed}`, `Worked${elapsed}`)}
+          </span>
           <ChevronRight className="execution-chevron" size={14} />
         </span>
         {divider}

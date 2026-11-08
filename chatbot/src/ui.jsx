@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { credentialHint, openCredentialSettings } from "./credentials";
 import HarnessIcon from "./HarnessIcon";
+import { t } from "./i18n.js";
 import {
   MENU_WIDTH,
   anchorVisible,
@@ -18,7 +19,7 @@ export function CredentialAction({ text }) {
     <span className="credential-action">
       <button type="button" onClick={() => openCredentialSettings(hint.field)}>
         <HarnessIcon name="key" size={13} />
-        去配置 {hint.label}
+        {t(`去配置 ${hint.label}`, `Configure ${hint.label}`)}
       </button>
       {hint.owner ? <small>需由责任人本人在个人配置中配置</small> : null}
     </span>
@@ -569,7 +570,7 @@ function SelectPopover({
         <label className="menu-search" ref={search}>
           <HarnessIcon name="search" size={15} interactive={false} />
           <input
-            placeholder={`搜索${label}`}
+            placeholder={t(`搜索${label}`, `Search ${label}`)}
             value={query}
             role="combobox"
             aria-expanded={open}

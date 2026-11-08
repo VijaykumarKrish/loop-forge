@@ -1,7 +1,9 @@
+import { t } from "./i18n.js";
+
 export function sessionProjectName(projectId, projects) {
   return projectId
     ? projects.find((project) => project.id === projectId)?.name || projectId
-    : "个人对话";
+    : t("个人对话", "Personal chat");
 }
 
 // What a history search matches: the names shown for the row, the SOP a run

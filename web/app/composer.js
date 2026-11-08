@@ -62,7 +62,7 @@ function composerProgressHTML(aiResult){
   if(aiResult.ready)return '<span class="hui-badge" data-tone="success"><span class="hui-lamp is-still"><i></i></span>已问清，可以创建</span>';
   const questions=composerClarifyQuestions(aiResult);
   const remaining=questions.length-reqAnsweredCount(questions);
-  const label=!questions.length?'还需要补充说明':(remaining?`还有 ${remaining} 个问题`:'已答完，提交后继续分析');
+  const label=!questions.length?'还需要补充说明':(remaining?lfT(`还有 ${remaining} 个问题`,`${remaining} question${remaining===1?'':'s'} left`):'已答完，提交后继续分析');
   return `<span class="hui-badge" data-tone="warn"><span class="hui-lamp is-still"><i></i></span>${label}</span>`;
 }
 function composerAssessmentDetailsHTML(aiResult){
@@ -74,8 +74,8 @@ function composerAssessmentDetailsHTML(aiResult){
     const value=Math.max(0,Math.min(100,Math.round(Number(view.ratings[id])||0)));
     return `<div class="req-dim"><span>${escapeHTML(dim?.name||id)}</span><span class="req-meter"><i style="width:${value}%"></i></span><b>${value}</b></div>`;
   }).join('');
-  const missing=view.missingNames.length?`<div class="req-dim-missing">缺失项：${view.missingNames.map(n=>escapeHTML(n)).join('、')}</div>`:'';
-  return `<details class="req-score-details"><summary class="req-fold">${reqIcon('chevron-down')}查看完整度详情</summary><div class="req-score-body">${rows}<div class="req-dim req-dim-total"><span>综合</span><span class="req-dim-line">项目准入线 ${view.threshold}</span><b>${view.score}</b></div>${missing}</div></details>`;
+  const missing=view.missingNames.length?`<div class="req-dim-missing">${lfT('缺失项：','Missing: ')}${view.missingNames.map(n=>escapeHTML(n)).join(lfT('、',', '))}</div>`:'';
+  return `<details class="req-score-details"><summary class="req-fold">${reqIcon('chevron-down')}查看完整度详情</summary><div class="req-score-body">${rows}<div class="req-dim req-dim-total"><span>综合</span><span class="req-dim-line">${lfT(`项目准入线 ${view.threshold}`,`Project threshold ${view.threshold}`)}</span><b>${view.score}</b></div>${missing}</div></details>`;
 }
 function projectTAPDReady(project){
   project=project||currentProject();
@@ -205,7 +205,7 @@ function reqRepoNames(ids){
   const repos=reqProjectRepositories();
   const names=(ids||[]).map(id=>repos.find(r=>r.id===id)?.name||id);
   if(!names.length)return '未选择';
-  return names.length===1?names[0]:`${names[0]} 等 ${names.length} 个`;
+  return names.length===1?names[0]:lfT(`${names[0]} 等 ${names.length} 个`,`${names[0]} +${names.length-1} more`);
 }
 function renderReqRepoChip(){
   const chip=$('#reqRepoChip');
@@ -273,7 +273,7 @@ function reqQuestionCardHTML(questions){
     ?`<button type="button" id="reqSubmitAnswers" class="button small primary"${busy}>提交回答</button>`
     :`<button type="button" id="reqNextQuestion" class="button small">${reqQuestionAnswered(idx)?'下一题':'跳过此题'}${reqIcon('chevron-right')}</button>`;
   return `<div class="req-q-card">`+
-    `<div class="req-q-progress"><div class="req-q-dots" aria-hidden="true">${dots}</div><span>第 ${idx+1} / ${n} 题</span></div>`+
+    `<div class="req-q-progress"><div class="req-q-dots" aria-hidden="true">${dots}</div><span>${lfT(`第 ${idx+1} / ${n} 题`,`Question ${idx+1} of ${n}`)}</span></div>`+
     `<div class="req-q-head">${reqIcon('chat',16)}<span id="reqQuestionText">${escapeHTML(q.question)}</span><span class="req-q-kind">${kind}</span></div>`+
     (options.length?`<div class="req-q-options" role="${multi?'group':'radiogroup'}" aria-labelledby="reqQuestionText">${optionHTML}</div>`:'')+
     `<input type="text" id="reqQuestionOther" class="input req-q-other" aria-labelledby="reqQuestionText" value="${escapeHTML(answer.other)}" placeholder="${options.length?'都不是？写下你的想法':'请填写回答'}"${busy}>`+
@@ -493,9 +493,18 @@ function renderReqSteps(){
       num.innerHTML=done?reqIcon('check',11):String(n);
     }
   });
+  // Step labels are set here rather than via the dictionary: word-by-word
+  // translation of "描述|需求" / "确认|创建" reads as "DescriptionRequirements".
+  const labels={1:[lfT('描述','Describe'),lfT('需求','')],2:[lfT('澄清','Clarify'),''],3:[lfT('确认','Confirm'),lfT('创建','')]};
+  $$('#reqSteps [data-req-step]').forEach(btn=>{
+    const [main,more]=labels[btn.dataset.reqStep]||[];
+    const label=btn.querySelector('.req-step-label'),extra=btn.querySelector('.req-step-more');
+    if(label&&main)label.textContent=main;
+    if(extra){extra.textContent=more;extra.hidden=!more;}
+  });
   hydrateReqIcons($('#reqSteps'));
   const tag=$('#reqStepSkipTag');
-  if(tag)tag.textContent=skipped&&step!==2?' · 已跳过':'';
+  if(tag)tag.textContent=skipped&&step!==2?lfT(' · 已跳过',' · skipped'):'';
 }
 function openReqStep(step){
   if(step===state.reqStep)return;
@@ -515,7 +524,7 @@ function startReqClarify(){
   if(requirementComposerBusy())return;
   if(!asked||desc!==state.reqLastDescription){
     state.reqLastDescription=desc;
-    return sendChatClarify(false,asked?`需求描述已更新：\n${desc}`:desc);
+    return sendChatClarify(false,asked?lfT(`需求描述已更新：\n${desc}`,`Requirement description updated:\n${desc}`):desc);
   }
   if(!state.chatClarifyResult)return sendChatClarify(true);
 }
@@ -548,20 +557,22 @@ function renderReqFooter(){
   [show('reqSkip',step===1),show('reqNext',step===1)].forEach(btn=>{
     if(!btn)return;
     btn.disabled=!hasDesc;
-    btn.title=hasDesc?'':'先写一句需求';
+    btn.title=hasDesc?'':lfT('先写一句需求','Write a sentence about the requirement first');
   });
+  const next=$('#reqNext');
+  if(next&&step===1)next.innerHTML=`${lfT('开始澄清','Start clarifying')}${reqIcon('chevron-right')}`;
   const go=show('reqGoCreate',step===2&&!busy);
   if(go){
     const ready=!!state.chatClarifyResult?.ready;
     go.className=ready?'button primary':'button';
-    go.innerHTML=ready?`下一步：确认创建${reqIcon('chevron-right')}`:'直接去创建';
+    go.innerHTML=ready?`${lfT('下一步：确认创建','Next: confirm and create')}${reqIcon('chevron-right')}`:lfT('直接去创建','Skip to create');
   }
   const create=show('reqCreate',step===3);
   if(create){
     const workflow=($('#reqWorkflow')?.value||'').trim(),title=($('#reqTitle')?.value||'').trim();
     create.disabled=creating||!workflow||!title;
     create.title=!workflow?'当前项目还没有可运行的 SOP，先到流程设计里配置':(!title?'先填写标题':'');
-    create.innerHTML=creating?'<span class="req-spin" aria-hidden="true"></span>正在创建…':(reqCreateAccepted()?'创建并启动 SOP':'创建需求');
+    create.innerHTML=creating?`<span class="req-spin" aria-hidden="true"></span>${lfT('正在创建…','Creating…')}`:(reqCreateAccepted()?lfT('创建并启动 SOP','Create and start SOP'):lfT('创建需求','Create requirement'));
   }
   const note=$('#reqComposerHint');
   if(note)note.textContent=reqFooterNote();
@@ -633,11 +644,11 @@ function renderReqRepoChangedAlert(){
   if(!changed)return;
   const snap=state.reqClarifyRepoSnapshot||{};
   const text=$('#reqRepoChangedText');
-  if(text)text.innerHTML=`澄清基于原仓库（<b>${escapeHTML(reqRepoNames(snap.ids||[]))}</b>${snap.baseBranch?` · 分支 ${escapeHTML(snap.baseBranch)}`:''}）`;
+  if(text)text.innerHTML=lfT(`澄清基于原仓库（<b>${escapeHTML(reqRepoNames(snap.ids||[]))}</b>${snap.baseBranch?` · 分支 ${escapeHTML(snap.baseBranch)}`:''}）`,`Clarification was based on the original repositories (<b>${escapeHTML(reqRepoNames(snap.ids||[]))}</b>${snap.baseBranch?` · branch ${escapeHTML(snap.baseBranch)}`:''})`);
 }
 function updateReqCharCount(){
   const count=$('#reqCharCount'),len=($('#chatInput')?.value||'').length;
-  if(count)count.textContent=len?`${len} 字`:'';
+  if(count)count.textContent=len?lfT(`${len} 字`,`${len} character${len===1?'':'s'}`):'';
 }
 function onReqDescriptionInput(){
   updateReqCharCount();
@@ -843,7 +854,7 @@ function clarifyThinkingReset(){
   state.reqToolCount=0;
   const toggle=$('#reqTraceToggle');
   if(toggle){toggle.hidden=true;toggle.setAttribute('aria-expanded','false')}
-  const label=$('#reqTraceLabel');if(label)label.textContent='已用 0 个工具';
+  const label=$('#reqTraceLabel');if(label)label.textContent=lfT('已用 0 个工具','Used 0 tools');
 }
 function clarifyToolLabel(tool){
   const name=String(tool||'').replace(/^mcp__agentflow_session__/,'');
@@ -862,7 +873,7 @@ function clarifyThinkingPush(ev){
     }
     state.reqToolCount=(state.reqToolCount||0)+1;
     const toggle=$('#reqTraceToggle');if(toggle)toggle.hidden=false;
-    const label=$('#reqTraceLabel');if(label)label.textContent=`已用 ${state.reqToolCount} 个工具`;
+    const label=$('#reqTraceLabel');if(label)label.textContent=lfT(`已用 ${state.reqToolCount} 个工具`,`Used ${state.reqToolCount} tool${state.reqToolCount===1?'':'s'}`);
     return;
   }
   const label=$('#reqThinkingLabel');
@@ -1152,7 +1163,7 @@ async function createIssueFromChat(target){
         clearRequirementComposer();
         $('#requirementModal').classList.remove('open');
         renderIssues();
-        toast('已在平台建单，TAPD 同步失败：'+err.message,'err');
+        toast(lfT('已在平台建单，TAPD 同步失败：','Created on the platform, but syncing to TAPD failed: ')+err.message,'err');
         openIssueDetail(issue.id);
         return;
       }

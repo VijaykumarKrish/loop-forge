@@ -11,6 +11,7 @@ import { collectSubagents, resumeMissed } from "./activity";
 import { IconButton } from "./ui";
 import { definitionTarget, actionName } from "./platform.js";
 import { useArtifactPanelLayout } from "./useArtifactPanelLayout";
+import { t } from "./i18n.js";
 import "./artifact-panel.css";
 
 const FileText = (props) => <HarnessIcon name="doc" {...props} />;
@@ -92,8 +93,8 @@ function DefinitionPreview({ artifact }) {
   if (target)
     return (
       <section className="definition-preview">
-        <h2>{data.name || artifact.name}</h2>
-        <p className="muted">{data.description}</p>
+        <h2 data-i18n-data>{data.name || artifact.name}</h2>
+        <p className="muted" data-i18n-data>{data.description}</p>
         <a
           className="definition-open-link"
           href={target.href}
@@ -111,8 +112,8 @@ function DefinitionPreview({ artifact }) {
         <span className="artifact-type-label">
           {artifact.kind === "sop" ? "SOP" : "角色"}
         </span>
-        <h2>{data.name || artifact.name}</h2>
-        <p>{data.description}</p>
+        <h2 data-i18n-data>{data.name || artifact.name}</h2>
+        <p data-i18n-data>{data.description}</p>
         <small>
           {artifact.draft && !artifact.draft.saved
             ? "待确认"
@@ -127,7 +128,7 @@ function DefinitionPreview({ artifact }) {
             <li key={node.id}>
               <span className="definition-step-number">{index + 1}</span>
               <div>
-                <strong>{node.name || node.id}</strong>
+                <strong data-i18n-data>{node.name || node.id}</strong>
                 <small>
                   {node.type === "approval"
                     ? "人工确认"
@@ -152,7 +153,9 @@ function DefinitionPreview({ artifact }) {
             message={data.prompt || data.description || "暂无说明"}
           />
           {data.model ? (
-            <small className="muted">模型 · {data.model}</small>
+            <small className="muted">
+              {t("模型", "Model")} · {data.model}
+            </small>
           ) : null}
         </>
       )}
@@ -168,7 +171,7 @@ function OperationPreview({ artifact, runs }) {
   return (
     <section className="operation-preview">
       {run ? (
-        <p>
+        <p data-i18n-data>
           {run.workflowSnapshot?.name || "SOP 运行"}
           {node ? ` · ${node.name || node.id}` : ""}
         </p>
@@ -362,13 +365,14 @@ export default function ArtifactPanel({
     const title = target
       ? `${artifact.name} · ${target.label}`
       : artifact.external
-        ? `${artifact.name} · 在代码仓库打开`
+        ? t(`${artifact.name} · 在代码仓库打开`, `${artifact.name} · Open in the code repository`)
         : artifact.name;
     return (
       <Row
         className={`artifact-row artifact-file-row ${selected?.id === artifact.id ? "is-selected" : ""}`}
         key={artifact.id}
         title={title}
+        data-i18n-data
         aria-current={selected?.id === artifact.id ? "true" : undefined}
         {...(href
           ? { href, target: "_blank", rel: "noopener noreferrer" }
@@ -381,7 +385,11 @@ export default function ArtifactPanel({
           <strong>{artifact.name}</strong>
           <small>
             {target
-              ? `${artifact.kind === "sop" ? "SOP" : "角色"} · ${artifact.asset?.status === "published" ? "已发布" : "已保存"}`
+              ? `${artifact.kind === "sop" ? "SOP" : t("角色", "Role")} · ${
+                  artifact.asset?.status === "published"
+                    ? t("已发布", "Published")
+                    : t("已保存", "Saved")
+                }`
               : artifact.source}
             {artifact.size
               ? ` · ${artifact.size < 1024 ? `${artifact.size} B` : `${Math.ceil(artifact.size / 1024)} KB`}`
@@ -483,6 +491,7 @@ export default function ArtifactPanel({
               <button
                 type="button"
                 className="artifact-panel-back-to-chat"
+                data-back-to-chat
                 aria-label="返回聊天"
                 onClick={onClose}
               >
@@ -506,10 +515,10 @@ export default function ArtifactPanel({
               <ChevronLeft size={14} />
               <span>{nodeId ? "返回流程节点" : "返回产物列表"}</span>
             </button>
-            {nodeId ? <span className="artifact-node-title">{nodeDefinition?.name || nodeId}</span> : null}
+            {nodeId ? <span className="artifact-node-title" data-i18n-data>{nodeDefinition?.name || nodeId}</span> : null}
             {selectedAgent ? (
               <>
-                <span className="artifact-node-title">{subagentName(selectedAgent)}</span>
+                <span className="artifact-node-title" data-i18n-data>{subagentName(selectedAgent)}</span>
                 <small className="node-header-meta" title={[selectedAgent.subagent, selectedAgent.agentId].filter(Boolean).join(" · ")}>
                   {subagentStatus(selectedAgent, live).label}
                 </small>
@@ -559,7 +568,7 @@ export default function ArtifactPanel({
             </label>
             {query ? (
               <span className="artifact-search-count" role="status">
-                {matchCount} 项
+                {t(`${matchCount} 项`, `${matchCount} ${matchCount === 1 ? "match" : "matches"}`)}
               </span>
             ) : null}
           </div>
@@ -677,7 +686,7 @@ export default function ArtifactPanel({
                         <GitBranch size={16} />
                       </span>
                       <span className="artifact-file-copy">
-                        <strong>
+                        <strong data-i18n-data>
                           {run.workflowSnapshot?.name || "SOP 运行"}
                         </strong>
                         <small>
@@ -690,7 +699,8 @@ export default function ArtifactPanel({
                               (item) => item.status === "succeeded",
                             ).length
                           }
-                          /{run.workflowSnapshot?.nodes?.length || 0} 节点
+                          /{run.workflowSnapshot?.nodes?.length || 0}{" "}
+                          {t("节点", "nodes")}
                         </small>
                       </span>
                       <ChevronRight className="artifact-row-action" size={13} />
@@ -727,11 +737,13 @@ export default function ArtifactPanel({
                           />
                         </span>
                         <span className="artifact-file-copy">
-                          <strong>{subagentName(agent)}</strong>
+                          <strong data-i18n-data>{subagentName(agent)}</strong>
                           <small>
                             <i className={`artifact-run-dot status-${{ done: "succeeded", running: "running", failed: "failed" }[status.tone] || "canceled"}`} />
                             {status.label}
-                            {count > 1 ? ` · 派发 ${count} 次` : ""}
+                            {count > 1
+                              ? t(` · 派发 ${count} 次`, ` · dispatched ${count} times`)
+                              : ""}
                             {agent.dispatches.at(-1)?.detail
                               ? ` · ${agent.dispatches.at(-1).detail}`
                               : ""}

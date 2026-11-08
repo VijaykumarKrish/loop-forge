@@ -1,5 +1,6 @@
 import { mergeActivity } from "./activity.js";
 import { actionName } from "./platform.js";
+import { isEnglish, t } from "./i18n.js";
 export async function api(path, options = {}) {
   const headers = { accept: "application/json", ...options.headers };
   if (options.body && !(options.body instanceof FormData))
@@ -13,7 +14,10 @@ export async function api(path, options = {}) {
     response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok)
     throw Object.assign(
-      new Error(data?.error || `请求失败（${response.status}）`),
+      new Error(
+        data?.error ||
+          t(`请求失败（${response.status}）`, `Request failed (${response.status})`),
+      ),
       { status: response.status },
     );
   return data;
@@ -35,11 +39,16 @@ export function elapsedSeconds(startedAt, finishedAt) {
   return Math.floor((end - start) / 1000);
 }
 export function formatElapsed(seconds) {
-  if (seconds < 1) return "不到1秒";
+  if (seconds < 1) return t("不到1秒", "under 1s");
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const rest = seconds % 60;
-  return `${hours ? `${hours}小时` : ""}${minutes ? `${minutes}分钟` : ""}${rest || (!hours && !minutes) ? `${rest}秒` : ""}`;
+  const showSeconds = rest || (!hours && !minutes);
+  if (isEnglish())
+    return [hours && `${hours}h`, minutes && `${minutes}m`, showSeconds && `${rest}s`]
+      .filter(Boolean)
+      .join(" ");
+  return `${hours ? `${hours}小时` : ""}${minutes ? `${minutes}分钟` : ""}${showSeconds ? `${rest}秒` : ""}`;
 }
 export const attachmentURL = (attachment, sessionId) =>
   attachment.id?.startsWith("local-attachment-") &&
@@ -198,7 +207,7 @@ export function collectArtifacts(session) {
         id: `block-${messageIndex}-${index}`,
         name:
           named ||
-          `${{ svg: "图像", mermaid: "流程图", html: "网页", slides: "演示文稿", ppt: "演示文稿" }[language] || "代码"}-${messageIndex + 1}-${index + 1}.${extension}`,
+          `${{ svg: t("图像", "image"), mermaid: t("流程图", "diagram"), html: t("网页", "page"), slides: t("演示文稿", "slides"), ppt: t("演示文稿", "slides") }[language] || t("代码", "code")}-${messageIndex + 1}-${index + 1}.${extension}`,
         kind: type,
         content: match[2],
         language,
@@ -380,10 +389,13 @@ export function restoreStream(snapshot) {
 // Keep the confirmation acknowledgement visible without presenting an internal
 // model-resume instruction as something the user typed. Validate the preceding
 // saved receipt; ordinary user text must never be hidden by a prefix match.
+// The server matches the same Chinese text (internal/repo/assistant_context.go);
+// English mode only appends CONFIRMATION_REPLY_HINT (see useChat.js).
+export const CONFIRMATION_REPLY_HINT = "\nReply in English.";
 export function confirmationCaption(message, previous) {
   if (message?.role !== "user" || previous?.role !== "assistant") return "";
   const match =
-    /^已确认并执行 ([a-z_]+)。请核对这条草稿的保存回执，继续完成原始请求；不要重复刚才的写入，下一项需要确认时提交草稿，全部完成时总结实际结果。$/.exec(
+    /^已确认并执行 ([a-z_]+)。请核对这条草稿的保存回执，继续完成原始请求；不要重复刚才的写入，下一项需要确认时提交草稿，全部完成时总结实际结果。(?:\nReply in English\.)?$/.exec(
       message.content || "",
     );
   if (
@@ -391,5 +403,8 @@ export function confirmationCaption(message, previous) {
     !parseReply(previous).drafts?.some((d) => d.saved && d.tool === match[1])
   )
     return "";
-  return `已确认${actionName(match[1])}，继续处理`;
+  return t(
+    `已确认${actionName(match[1])}，继续处理`,
+    `Confirmed: ${actionName(match[1])}. Continuing`,
+  );
 }
