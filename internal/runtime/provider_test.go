@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -86,6 +87,63 @@ func TestClaudePrintModeAddsVerboseForStreamJSONCompatibility(t *testing.T) {
 	}
 	if !hasArg(command.Argv, "--verbose") {
 		t.Fatalf("Claude print-mode argv missing --verbose: %v", command.Argv)
+	}
+}
+
+// The default Claude executor runs in dontAsk mode, so a node can only write
+// its deliverable and submit its gate result through pre-approved tools.
+func TestClaudeNodePreApprovesWriteAndGateTools(t *testing.T) {
+	compiled := compiledConfig{AgentRoot: ".agentflow/probe"}
+	err := claudeProvider{}.Materialize(&providerMaterializeContext{
+		AgentRel:   ".agentflow/probe",
+		MCPServers: []domain.MCPServerDefinition{{ID: gateMCPServerID, Transport: "stdio", Command: "gate-mcp"}, {ID: "agentflow-browser", Transport: "http"}},
+		Compiled:   &compiled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	command, err := claudeProvider{}.Prepare(providerInvocation{
+		Executor: domain.ExecutorDefinition{Kind: "claude-code", Binary: "claude", Args: []string{"-p", "--output-format", "stream-json", "--permission-mode", "dontAsk"}},
+		Compiled: compiled,
+		Prompt:   "probe",
+		Driver:   "docker",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	argv := command.Argv
+	index := -1
+	for i, arg := range argv {
+		if arg == "--allowedTools" {
+			index = i
+		}
+	}
+	if index < 0 || index+2 >= len(argv) {
+		t.Fatalf("--allowedTools missing: %v", argv)
+	}
+	allowed := "," + argv[index+1] + ","
+	for _, tool := range []string{"Write", "Edit", "Bash", "Read", "mcp__agentflow-gate", "mcp__agentflow-browser"} {
+		if !strings.Contains(allowed, ","+tool+",") {
+			t.Fatalf("%s not pre-approved: %s", tool, argv[index+1])
+		}
+	}
+	if !strings.HasPrefix(argv[index+2], "-") {
+		t.Fatalf("variadic --allowedTools can absorb the next argument: %v", argv)
+	}
+	if argv[len(argv)-1] != "probe" {
+		t.Fatalf("prompt is not the final argument: %v", argv)
+	}
+}
+
+// Claude Code ignores a stdio MCP server whose args is JSON null.
+func TestMCPConfigStdioArgsAreNeverNull(t *testing.T) {
+	entries, err := mcpConfigEntries([]domain.MCPServerDefinition{{ID: gateMCPServerID, Transport: "stdio", Command: "gate-mcp"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(entries)
+	if !strings.Contains(string(raw), `"args":[]`) {
+		t.Fatalf("stdio args must be an empty array: %s", raw)
 	}
 }
 

@@ -491,6 +491,37 @@ func bwrapAgentConfigMasks(workspace string) ([]string, error) {
 	return args, nil
 }
 
+// ensureDockerMaskTargets creates the in-workspace mount points of the Docker
+// isolation masks as the current user. Docker creates missing bind targets as
+// root on the host; on a non-root runner that leaves a root-owned .agentflow in
+// the workspace, and preparing the invocation (.agentflow/runtime) then fails
+// with permission denied. Existing targets are left untouched.
+func ensureDockerMaskTargets(workspace string) error {
+	agentflowDir := filepath.Join(workspace, ".agentflow")
+	isolationDir := filepath.Join(agentflowDir, "isolation")
+	for _, dir := range []string{agentflowDir, isolationDir, filepath.Join(isolationDir, "empty-dir")} {
+		if err := ensureDirectoryNoSymlink(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	emptyFile := filepath.Join(isolationDir, "empty-file")
+	info, err := os.Lstat(emptyFile)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return fmt.Errorf("sandbox mask path is not a regular file: %s", emptyFile)
+		}
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+	file, err := os.OpenFile(emptyFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
 func dockerIsolationMaskRoot(workspace string) string {
 	workspace = filepath.Clean(workspace)
 	return filepath.Join(filepath.Dir(workspace), ".isolation-masks", filepath.Base(workspace))
@@ -499,6 +530,9 @@ func dockerIsolationMaskRoot(workspace string) string {
 func dockerAgentConfigMasks(workspace string) ([]string, error) {
 	emptyDir, emptyFile, err := isolationMaskSourcesAt(dockerIsolationMaskRoot(workspace))
 	if err != nil {
+		return nil, err
+	}
+	if err := ensureDockerMaskTargets(workspace); err != nil {
 		return nil, err
 	}
 	emptyDirTarget := filepath.ToSlash(filepath.Join("/workspace", ".agentflow", "isolation", "empty-dir"))
@@ -535,6 +569,16 @@ func dockerAgentConfigMasks(workspace string) ([]string, error) {
 // in AgentFlow definitions, or passed through docker exec environment flags.
 // Command nodes and unknown executables receive no Agent CLI state mount.
 func dockerAgentStateMountRequirements(requirements SandboxRequirements) ([]string, error) {
+	return dockerAgentStateMountsAt(requirements, "/root")
+}
+
+// dockerNonRootStateHome is the container home used when a non-root runner
+// starts a root/default image as its own UID: /root is 0700 root there, so the
+// CLI state is mounted into a writable tmpfs home instead.
+const dockerNonRootStateHome = "/home/agentflow"
+
+// dockerAgentStateMountsAt mounts the CLI state under home inside the container.
+func dockerAgentStateMountsAt(requirements SandboxRequirements, home string) ([]string, error) {
 	stateDirs, err := agentStateDirectories(requirements)
 	if err != nil || len(stateDirs) == 0 {
 		return nil, err
@@ -551,7 +595,7 @@ func dockerAgentStateMountRequirements(requirements SandboxRequirements) ([]stri
 		if !info.IsDir() {
 			return nil, fmt.Errorf("Agent CLI state path is not a directory: %s", state.path)
 		}
-		target := filepath.ToSlash(filepath.Join("/root", filepath.Base(state.path)))
+		target := filepath.ToSlash(filepath.Join(home, filepath.Base(state.path)))
 		args = append(args, "--mount", "type=bind,src="+state.path+",dst="+target)
 		for _, name := range state.files {
 			stateFile := filepath.Join(filepath.Dir(state.path), name)
@@ -560,7 +604,7 @@ func dockerAgentStateMountRequirements(requirements SandboxRequirements) ([]stri
 				if !fileInfo.Mode().IsRegular() {
 					return nil, fmt.Errorf("Agent CLI state path is not a regular file: %s", stateFile)
 				}
-				args = append(args, "--mount", "type=bind,src="+stateFile+",dst=/root/"+name)
+				args = append(args, "--mount", "type=bind,src="+stateFile+",dst="+filepath.ToSlash(filepath.Join(home, name)))
 			} else if !os.IsNotExist(fileErr) {
 				return nil, fileErr
 			}

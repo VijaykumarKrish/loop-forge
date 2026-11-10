@@ -89,6 +89,50 @@ func TestDefaultExecutionRunnerUsesFrozenTarget(t *testing.T) {
 	}
 }
 
+func TestRunnerSandboxSpecCarriesLocalLoginState(t *testing.T) {
+	t.Parallel()
+	s, err := repo.OpenTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.PutExecutor(domain.ExecutorDefinition{ID: "claude-local", Name: "Claude", Kind: "claude-code", Binary: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PutAgent(domain.AgentDefinition{ID: "claude-role", Name: "Claude role", ExecutorID: "claude-local"}); err != nil {
+		t.Fatal(err)
+	}
+	runner := domain.Runner{ID: "runner-login", Name: "laptop", Runtimes: []domain.RunnerRuntime{{Provider: "claude-code", Status: domain.RuntimeStatusOnline, AuthMode: domain.RuntimeAuthLocal}}}
+	if err := s.PutRunner(runner); err != nil {
+		t.Fatal(err)
+	}
+	e := New(s, runtime.NewManager(filepath.Join(t.TempDir(), "workspaces")))
+	run := domain.Run{
+		WorkflowSnapshot: domain.WorkflowDefinition{ID: "wf", Nodes: []domain.WorkflowNode{{ID: "work", Type: "agent", AgentID: "claude-role"}}},
+		ExecutionContext: domain.TelemetryContext{ExecutionMode: domain.ExecutionModeRunner, ExecutionRunnerID: runner.ID},
+	}
+	spec, err := e.runnerSandboxSpec(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := spec.Requirements.CLIStates
+	if len(states) != 1 || states[0].Directory != ".claude" || len(states[0].Files) != 1 || states[0].Files[0] != ".claude.json" {
+		t.Fatalf("local login state missing from frozen spec: %+v", spec.Requirements)
+	}
+
+	runner.Runtimes[0].AuthMode = domain.RuntimeAuthPersonal
+	if err := s.PutRunner(runner); err != nil {
+		t.Fatal(err)
+	}
+	spec, err = e.runnerSandboxSpec(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.Requirements.CLIStates) != 0 {
+		t.Fatalf("personal-key runtime must not mount host login: %+v", spec.Requirements)
+	}
+}
+
 func TestResumePausedWaitsForActiveRunnerTask(t *testing.T) {
 	t.Parallel()
 	s, err := repo.OpenTest()

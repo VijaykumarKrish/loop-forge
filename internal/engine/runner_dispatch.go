@@ -153,6 +153,21 @@ func (e *Engine) runnerSandboxSpec(run domain.Run) (*domain.RunnerSandboxSpec, e
 	if err != nil {
 		return nil, err
 	}
+	// The runner treats this spec as authoritative and only mounts the CLI
+	// login state listed here, so runtimes set to the machine's own CLI login
+	// must carry their state; otherwise the sandboxed CLI starts logged out.
+	if runnerID := e.defaultExecutionRunner(run); runnerID != "" {
+		if runner, ok := e.repo.Runner(runnerID); ok {
+			for _, kind := range workflowExecutorKinds(e.repo, run.WorkflowSnapshot) {
+				if runner.RuntimeAuthMode(kind) != domain.RuntimeAuthLocal {
+					continue
+				}
+				if state, ok := runtime.LocalLoginCLIState(kind); ok {
+					requirements.CLIStates = runtime.MergeSandboxRequirements(runtime.SandboxRequirements{CLIStates: requirements.CLIStates}, runtime.SandboxRequirements{CLIStates: []runtime.CLIStateRequirement{state}}).CLIStates
+				}
+			}
+		}
+	}
 	spec.Requirements = &domain.RunnerSandboxRequirements{PrivateHome: requirements.PrivateHome, BunFS: requirements.BunFS}
 	for _, state := range requirements.CLIStates {
 		spec.Requirements.CLIStates = append(spec.Requirements.CLIStates, domain.RunnerCLIStateRequirement{Directory: state.Directory, Files: append([]string(nil), state.Files...)})

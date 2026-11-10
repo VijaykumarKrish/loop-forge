@@ -168,3 +168,58 @@ func TestWorkspacePreparationReusableSimple(t *testing.T) {
 		t.Fatal("wrong environment reusable")
 	}
 }
+
+// A non-root runner must own the Docker mask mount points inside its workspace;
+// otherwise dockerd creates .agentflow as root and invocation setup fails.
+func TestDockerMaskTargetsCreatedInWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	if _, err := dockerAgentConfigMasks(workspace); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{".agentflow/isolation/empty-dir", ".agentflow/isolation/empty-file"} {
+		if _, err := os.Lstat(filepath.Join(workspace, rel)); err != nil {
+			t.Fatalf("mask target %s not pre-created: %v", rel, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(workspace, ".agentflow/isolation/empty-file"), []byte("kept"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureDockerMaskTargets(workspace); err != nil {
+		t.Fatalf("existing targets must be accepted: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workspace, ".agentflow", "runtime"), 0o755); err != nil {
+		t.Fatalf("workspace .agentflow not writable after masks: %v", err)
+	}
+	link := t.TempDir()
+	if err := os.Symlink(t.TempDir(), filepath.Join(link, ".agentflow")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureDockerMaskTargets(link); err == nil {
+		t.Fatal("symlinked .agentflow accepted")
+	}
+}
+
+func TestDockerAgentStateMountsUseGivenHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".claude.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	requirements := SandboxRequirements{CLIStates: []CLIStateRequirement{{Directory: ".claude", Files: []string{".claude.json"}}}}
+	args, err := dockerAgentStateMountsAt(requirements, dockerNonRootStateHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.Join(args, " ")
+	for _, want := range []string{"dst=" + dockerNonRootStateHome + "/.claude", "dst=" + dockerNonRootStateHome + "/.claude.json"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %s in %v", want, args)
+		}
+	}
+	if strings.Contains(text, "dst=/root") {
+		t.Fatalf("non-root home still mounts under /root: %v", args)
+	}
+}

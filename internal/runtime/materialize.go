@@ -417,7 +417,13 @@ func mcpConfigEntries(servers []domain.MCPServerDefinition) (map[string]any, err
 			}
 		} else {
 			entry["command"] = m.Command
-			entry["args"] = m.Args
+			// Claude Code silently drops a stdio server whose args is JSON null,
+			// which hid the gate tool from every Claude node.
+			args := m.Args
+			if args == nil {
+				args = []string{}
+			}
+			entry["args"] = args
 			if cwd := MCPRuntimeWorkingDirectory(m); cwd != "" {
 				entry["cwd"] = cwd
 			}

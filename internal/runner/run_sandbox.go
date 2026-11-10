@@ -192,13 +192,8 @@ func taskSandboxSpec(task domain.RunnerTask) (runtime.SandboxRequirements, runti
 	}
 	requirements := runtime.ProviderRequirements(task.Provider)
 	if task.Invocation != nil && task.Invocation.CredentialSource != domain.RuntimeAuthPersonal {
-		switch task.Provider {
-		case "codex":
-			requirements.CLIStates = []runtime.CLIStateRequirement{{Directory: ".codex"}}
-		case "claude-code":
-			requirements.CLIStates = []runtime.CLIStateRequirement{{Directory: ".claude", Files: []string{".claude.json"}}}
-		case "codebuddy":
-			requirements.CLIStates = []runtime.CLIStateRequirement{{Directory: ".codebuddy", Files: []string{".codebuddy.json"}}}
+		if state, ok := runtime.LocalLoginCLIState(task.Provider); ok {
+			requirements.CLIStates = []runtime.CLIStateRequirement{state}
 		}
 	}
 	return requirements, resources

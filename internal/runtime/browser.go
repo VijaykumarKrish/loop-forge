@@ -230,11 +230,24 @@ func (s *dockerSandbox) ensureBrowser(ctx context.Context, runID string, sink Ev
 	out, inspectErr := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Running}}|{{.Config.Image}}|{{index .Config.Labels \""+browserRunLabel+"\"}}", name).Output()
 	if inspectErr != nil || strings.TrimSpace(string(out)) != "true|"+image+"|"+runID {
 		_ = exec.CommandContext(ctx, "docker", "rm", "-f", name).Run()
+		// Create the output directory as the runner user before the sidecar
+		// starts, so it is not created as root inside the bind-mounted workspace.
+		for _, dir := range []string{filepath.Join(s.workspace, ".agentflow"), filepath.Join(s.workspace, ".agentflow", "browser")} {
+			if err := ensureDirectoryNoSymlink(dir, 0o755); err != nil {
+				return domain.MCPServerDefinition{}, fmt.Errorf("准备浏览器输出目录失败: %w", err)
+			}
+		}
 		args := []string{"run", "-d", "--name", name, "--init",
 			"--label", browserRunLabel + "=" + runID, "--label", browserOwnerLabel + "=" + s.name,
 			"--network", "container:" + s.name, "--cap-drop=ALL", "--security-opt", "no-new-privileges",
 			"--shm-size", "512m", "-v", s.workspace + ":/workspace", "-w", "/workspace",
-			"-e", "AGENTFLOW_BROWSER_OUTPUT=/workspace/.agentflow/browser", image}
+			"-e", "AGENTFLOW_BROWSER_OUTPUT=/workspace/.agentflow/browser"}
+		// Like the runtime container: a non-root runner owns its workspace, so the
+		// sidecar runs as that user and leaves no root-owned files behind.
+		if os.Geteuid() != 0 {
+			args = append(args, "--user", fmt.Sprintf("%d:%d", os.Geteuid(), os.Getegid()), "-e", "HOME=/tmp")
+		}
+		args = append(args, image)
 		if out, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput(); err != nil {
 			return domain.MCPServerDefinition{}, fmt.Errorf("启动浏览器容器失败: %w: %s", err, tailOutput(out))
 		}

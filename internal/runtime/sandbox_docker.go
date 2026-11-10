@@ -606,6 +606,7 @@ func (s *dockerSandbox) ensureStarted(ctx context.Context) error {
 	// Native installs own private (0700) workspaces as the service user.
 	// A root image without DAC capabilities cannot access another UID's bind.
 	// Run default/root images as that user; retain explicit non-root image users.
+	runsAsRunnerUser := false
 	if os.Geteuid() != 0 {
 		configured, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{.Config.User}}", image).CombinedOutput()
 		if err != nil {
@@ -614,6 +615,7 @@ func (s *dockerSandbox) ensureStarted(ctx context.Context) error {
 		user, _, _ := strings.Cut(strings.TrimSpace(string(configured)), ":")
 		if user == "" || user == "root" || user == "0" {
 			args = append(args, "--user", fmt.Sprintf("%d:%d", os.Geteuid(), os.Getegid()))
+			runsAsRunnerUser = true
 		}
 	}
 	if network := strings.TrimSpace(os.Getenv("AGENTFLOW_DOCKER_NETWORK")); network != "" {
@@ -624,7 +626,17 @@ func (s *dockerSandbox) ensureStarted(ctx context.Context) error {
 		return err
 	}
 	args = append(args, maskArgs...)
-	stateArgs, err := dockerAgentStateMountRequirements(s.requirements)
+	var stateArgs []string
+	if runsAsRunnerUser {
+		// /root is unreadable for the runner UID, so the CLI login goes into a
+		// writable tmpfs home that becomes $HOME for every exec.
+		stateArgs, err = dockerAgentStateMountsAt(s.requirements, dockerNonRootStateHome)
+		if err == nil && len(stateArgs) > 0 {
+			stateArgs = append([]string{"--mount", "type=tmpfs,dst=" + dockerNonRootStateHome + ",tmpfs-mode=1777", "-e", "HOME=" + dockerNonRootStateHome}, stateArgs...)
+		}
+	} else {
+		stateArgs, err = dockerAgentStateMountRequirements(s.requirements)
+	}
 	if err != nil {
 		return err
 	}

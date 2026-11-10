@@ -352,6 +352,17 @@ func (e *Engine) ForwardWorkspaceRequest(ctx context.Context, run domain.Run, re
 // Execution still uses the strict workflow validation and executor resolution.
 func workspaceConversationRequirements(st *repo.Store, wf domain.WorkflowDefinition) (runtime.SandboxRequirements, error) {
 	var items []runtime.SandboxRequirements
+	for _, kind := range workflowExecutorKinds(st, wf) {
+		items = append(items, runtime.ProviderRequirements(kind))
+	}
+	return runtime.MergeSandboxRequirements(items...), nil
+}
+
+// workflowExecutorKinds lists the distinct executor kinds of a workflow's
+// agent nodes, in node order.
+func workflowExecutorKinds(st *repo.Store, wf domain.WorkflowDefinition) []string {
+	var kinds []string
+	seen := map[string]bool{}
 	for _, node := range wf.Nodes {
 		if node.Type != "agent" {
 			continue
@@ -361,12 +372,13 @@ func workspaceConversationRequirements(st *repo.Store, wf domain.WorkflowDefinit
 			continue
 		}
 		executor, err := resolveNodeExecutor(st, node, agent)
-		if err != nil {
+		if err != nil || seen[executor.Kind] {
 			continue
 		}
-		items = append(items, runtime.ProviderRequirements(executor.Kind))
+		seen[executor.Kind] = true
+		kinds = append(kinds, executor.Kind)
 	}
-	return runtime.MergeSandboxRequirements(items...), nil
+	return kinds
 }
 
 // ForwardPreparedWorkspaceRequest is used under an editor transaction after

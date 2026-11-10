@@ -21,6 +21,7 @@ func (claudeProvider) Materialize(ctx *providerMaterializeContext) error {
 		"--mcp-config", filepath.ToSlash(filepath.Join(ctx.AgentRel, "mcp.json")),
 		"--setting-sources", "user",
 		"--system-prompt-file", filepath.ToSlash(filepath.Join(ctx.AgentRel, "agent-system.md")),
+		"--allowedTools", claudeAllowedTools(ctx.MCPServers, len(ctx.Assets.Skills) > 0),
 	)
 	if len(ctx.Compiled.Hooks) > 0 {
 		settingsPath := filepath.Join(ctx.ConfigRoot, "claude-settings.json")
@@ -33,6 +34,30 @@ func (claudeProvider) Materialize(ctx *providerMaterializeContext) error {
 		ctx.Compiled.Args = append(ctx.Compiled.Args, "--plugin-dir", filepath.ToSlash(ctx.AgentRel))
 	}
 	return nil
+}
+
+// claudeNodeTools are the built-in tools an unattended node needs. The default
+// executor runs with --permission-mode dontAsk, which denies every tool that
+// is not pre-approved, so without this list a node could not write its
+// deliverable or call submit_gate_result. Isolation comes from the sandbox.
+var claudeNodeTools = []string{
+	"Bash", "Edit", "MultiEdit", "Write", "Read", "Glob", "Grep", "NotebookEdit",
+	"TodoWrite", "Task", "WebFetch", "WebSearch",
+}
+
+// claudeAllowedTools returns one comma-separated value so the variadic
+// --allowedTools flag cannot absorb following arguments.
+func claudeAllowedTools(servers []domain.MCPServerDefinition, hasSkills bool) string {
+	tools := append([]string{}, claudeNodeTools...)
+	if hasSkills {
+		tools = append(tools, "Skill")
+	}
+	for _, server := range servers {
+		if id := strings.TrimSpace(server.ID); id != "" {
+			tools = append(tools, "mcp__"+id)
+		}
+	}
+	return strings.Join(tools, ",")
 }
 
 func materializeClaudePlugin(ctx *providerMaterializeContext) error {

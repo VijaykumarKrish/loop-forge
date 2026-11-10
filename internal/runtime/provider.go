@@ -154,6 +154,21 @@ func ProviderRequirements(kind string) SandboxRequirements {
 	return providerForKind(kind).SandboxRequirements()
 }
 
+// LocalLoginCLIState is the host CLI login state (relative to the runner's
+// home) that a sandboxed agent needs when the runtime uses the machine's own
+// CLI login instead of a personal API key.
+func LocalLoginCLIState(kind string) (CLIStateRequirement, bool) {
+	switch strings.TrimSpace(kind) {
+	case "codex":
+		return CLIStateRequirement{Directory: ".codex"}, true
+	case "claude-code":
+		return CLIStateRequirement{Directory: ".claude", Files: []string{".claude.json"}}, true
+	case "codebuddy":
+		return CLIStateRequirement{Directory: ".codebuddy", Files: []string{".codebuddy.json"}}, true
+	}
+	return CLIStateRequirement{}, false
+}
+
 // PrepareProviderCommand exposes the same provider flag and credential-binding
 // policy to control-plane call sites that do not run a workflow node.
 func PrepareProviderCommand(executor domain.ExecutorDefinition, prompt, driver string, options InvocationOptions) (CommandSpec, error) {
